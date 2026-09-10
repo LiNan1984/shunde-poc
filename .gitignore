@@ -23,5 +23,9 @@ venv/
 .scratch/
 *.log
 
+# Temp CSV staging dir used by scripts/append_proof_blocks.py
+.cache/
+**/*.pyc
+
 # Upstream clone managed separately via gh (keep local; do not vendor)
 QwenPaw/
