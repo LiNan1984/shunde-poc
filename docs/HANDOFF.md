@@ -170,6 +170,7 @@ MaaS 形态参考（无密钥）：
 | 文档 | 用途 |
 |------|------|
 | 本文 `docs/HANDOFF.md` | 交接总览与接手步骤 |
+| **`docs/HANDOFF_FOR_AI.md`** | **交给下一个开发 AI：30 秒开工、任务卡 A～E、红线、踩坑记录** |
 | `docs/qwenpaw-poc-modification-evaluation.md` | 源码扩展点、怎么改 |
 | `docs/poc-completion-gap-qa.md` | 完成度、埋点结论、工期、24 条验收标准 |
 | `docs/superpowers/plans/2026-03-22-poc-phase1-excel-plan.md` | 阶段计划与 P1 DoD |
