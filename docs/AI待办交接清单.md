@@ -46,6 +46,31 @@ gh repo clone agentscope-ai/QwenPaw -- --branch v2.0.0
 
 ### 🔴 第一优先：不依赖外部环境，马上能做
 
+#### ✅ 完成证明已交付 — commit `c4fe551`
+
+**产物**：`docs/演示材料/POC完成证明与演示手册.docx`
+
+- 由 `scripts/append_proof_blocks.py` 从需求原文 `人工智能场景拓展与迭代开发技术服务项目-POC选型方案.docx` 自动生成，**每次运行都从 source 字节全量覆盖重来**，不做增量。
+- 11 个 proof block（用例 1-1 … 4-3）**紧贴各自的原评估指标表之后**，顺序为：原评估表 → Heading 3 标题 → 说明段 → 4 列证据表（考察点 / 完成状态 / 证据文件行号 / 演示命令）。评委可按需求原文顺序直接往下读，不用来回跳。
+- 标题使用真实 **Heading 3** 样式（带 `w:outlineLvl`），Word 导航窗格 / 大纲视图可直接列出这 11 个 block 跳转。
+- 插入锚点用原文空段落的 `w14:paraId`（**不是** `/body/tbl[N]` 位置索引——后者每插一张表就会整体位移）。
+- 脚本支持 `--backend={officecli,python-docx}`，两个后端产物等价（body 逐元素 + 表格单元格内容比对一致）；`python-docx` 后端不需要外部 binary，可直接用于 CI。
+
+**重新生成**：
+```bash
+source .venv/bin/activate
+python scripts/append_proof_blocks.py                      # 默认 officecli 后端
+python scripts/append_proof_blocks.py --backend=python-docx # 免外部依赖，CI 可用
+```
+
+**验收**：
+```bash
+python -c "from docx import Document; d=Document('docs/演示材料/POC完成证明与演示手册.docx'); print(sum(1 for p in d.paragraphs if p.style.name=='Heading 3' and '完成证明' in p.text))"
+# 期望输出 11
+```
+
+> 注：场景②（知识库构建 / 知识检索召回，用例 2-1、2-2）在文档中如实标注为「⚠️ 被外部阻塞」，等任务 G 的端点到位后需回填证据并重跑脚本。
+
 #### ☑ 任务 A：报告可视化（场景④）收尾到能演示 — ✅ commit `e033887`
 - [x] 补错误路径测试：`report_mcp/charts.py` 覆盖率 60%→≥85%（空数据/列缺失/非法类型/路径越界/输出目录不可写）；`crosstab.py` 66%→≥90%
 - [x] 新增 `poc/tests/test_report_mcp_server.py`，断言 7 个工具全部注册且能调用（测试写法见下方第五节）
