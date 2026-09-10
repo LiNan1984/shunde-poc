@@ -1,0 +1,82 @@
+# POC deployment image.
+#
+# Target: <500 MB on disk after `docker build`.
+#
+# Strategy:
+#   1. Build stage installs build-only deps into a throwaway layer.
+#   2. Runtime stage uses python:3.13-slim, copies the venv + repo only.
+#   3. Install fonts-wqy-zenhei (Chinese font) so matplotlib charts render
+#      without falling back to the CJK-missing glyph boxes in the
+#      report-visualizer skill's demo (see docs/AI待办交接清单.md §5).
+#   4. Do NOT install XFCE4 / Chromium / Coding Mode (the bank's demo
+#      environment does not require a browser, per 任务 D 预研).
+#
+# Build (from repo root):
+#     docker build -f poc/deploy/Dockerfile.poc -t shunde-poc:dev .
+#
+# Run:
+#     docker run --rm -p 8080:8080 -e POC_WORKSPACE=/data \
+#         -v "$PWD/poc/fixtures:/data" shunde-poc:dev
+
+# ---- build stage ---------------------------------------------------------------
+FROM python:3.13-slim AS builder
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# uv is the fastest installer; keep build deps here so they don't
+# bloat the runtime layer.
+RUN pip install --no-cache-dir uv==0.5.*
+
+WORKDIR /build
+
+# Pre-install Python deps into a venv so we can copy the venv wholesale.
+COPY poc/requirements.txt ./
+RUN uv venv /build/.venv && \
+    /build/.venv/bin/pip install --no-cache-dir -r poc/requirements.txt && \
+    /build/.venv/bin/pip install --no-cache-dir fastapi uvicorn
+
+# ---- runtime stage -------------------------------------------------------------
+FROM python:3.13-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    POC_WORKSPACE=/data
+
+# Runtime system deps. tini gives us a proper PID 1 for signal forwarding.
+# fonts-wqy-zenhei provides CJK glyphs for matplotlib in the report demo.
+# ca-certificates is required for HTTPS calls to MCP / model providers.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        tini \
+        ca-certificates \
+        fonts-wqy-zenhei && \
+    rm -rf /var/lib/apt/lists/*
+
+# Bring in the prebuilt venv from the builder.
+COPY --from=builder /build/.venv /opt/poc/.venv
+
+# Bring in the repository (slim: only the runtime surface).
+WORKDIR /opt/poc
+COPY poc/ /opt/poc/poc/
+COPY scripts/ /opt/poc/scripts/
+COPY tests/ /opt/poc/tests/
+COPY docs/ /opt/poc/docs/
+
+ENV PATH="/opt/poc/.venv/bin:$PATH" \
+    PYTHONPATH="/opt/poc"
+
+# Writable workspace root for fixtures and generated reports.
+RUN mkdir -p /data && chmod 755 /data
+
+# Default port for the future health server (see poc/plugins/health/).
+EXPOSE 8080
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+# Default command runs the health server so a `docker run` immediately
+# gives operators a probe endpoint. The full QwenPaw runtime would
+# replace this with `python -m qwenpaw` once image slicing is added.
+CMD ["python", "-m", "poc.plugins.health"]
