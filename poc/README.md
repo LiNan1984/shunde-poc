@@ -78,3 +78,21 @@ Skill 目录：`poc/skills/report-visualizer/`（含 `SKILL.md`）。
 6. 安装新依赖：`source .venv/bin/activate && pip install python-docx matplotlib`
 
 工具：`pivot_table_tool`、`render_bar_tool`、`render_line_tool`、`render_pie_tool`、`render_scatter_tool`、`render_heatmap_tool`、`render_docx_report_tool`。
+
+### 实测记录（2026-09）
+
+- 一键 demo（无需启动 Console）：`source .venv/bin/activate && python scripts/report_demo.py`，产出 `poc/fixtures/report_demo/out/report.docx`（13 段落 + 1 交叉表 + 5 嵌入图）。验证脚本内置对所有工具 `ok` 的断言，任一失败立即非零退出。
+- stdio 彩排：`python scripts/mcp_stdio_smoke.py`——以子进程方式 `python -m poc.excel_guard_mcp` 与 `python -m poc.report_mcp` 启动，对每路发送 JSON-RPC `initialize` 并校验响应，同时复用单元测试同款的 `mcp.list_tools()` 在进程内枚举，确认 3 + 7 工具齐全。
+- 单元测试自动化可达：193 passed, 1 skipped（基线 101 + 新增 92），`charts.py` 98%、`crosstab.py` 100%、`docx_gen.py` 89% 覆盖；详见 `pytest poc/tests --cov=poc/report_mcp --cov=poc/excel_guard_mcp --cov-report=term-missing`。
+- 仅人工可达（无法自动化）：Console GUI 的"创建 MCP + 下发 Skill + 智能体绑定"步骤——按上文 §导入 MCP / §挂载 Skill 在浏览器里点即可。
+
+### 任务 A 完成度核对
+
+| DoD 子项 | 状态 | 证据 |
+|---------|------|------|
+| charts 覆盖率 ≥85% | ✅ 98% | `pytest poc/tests --cov=poc/report_mcp` |
+| crosstab 覆盖率 ≥90% | ✅ 100% | 同上 |
+| 7 工具全部注册且可调用 | ✅ | `poc/tests/test_report_mcp_server.py` + `scripts/mcp_stdio_smoke.py` |
+| CSV 分块 | ✅ | `poc/tests/test_chunk_csv.py` 覆盖 xlsx + csv + 边界 |
+| 一键 demo 脚本 | ✅ | `scripts/report_demo.py` 已跑通 |
+| Console 实挂彩排 | 🟡 自动化部分完成，GUI 仅人工 | 见上"实测记录" |
