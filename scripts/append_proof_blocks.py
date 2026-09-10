@@ -1,33 +1,51 @@
 """Insert 完成证明 blocks after every evaluation table in the
 requirement docx.
 
-Strategy (this iteration):
-- For each original evaluation table /body/tbl[N] (N=3..13), append:
-    1. Heading-like paragraph (bold + 14pt + accent color) AFTER tbl[N]
-    2. Intro paragraph AFTER the new heading
-    3. Proof table (4 cols, header + 1-3 evidence rows) AFTER tbl[N]
-  via officecli's ``add --after``. Three consecutive adds in document
-  order. /body/tbl[N] indexing is STABLE across these adds (verified
-  manually) — new tables get assigned to high indices /body/tbl[14..]
-  without disturbing the original anchors.
+For each original evaluation table /body/tbl[N] (N=3..13) three elements
+are inserted, in document order:
 
-  Why three consecutive adds (not batch)? Each ``add --after`` needs a
-  fresh /body/tbl[N] anchor to be visible. After step 3 we have a new
-  table sitting at the tail (tbl[14], tbl[15], ...), but tbl[3..13]
-  keep their indices. Step 4 of the NEXT iteration targets /body/tbl[4]
-  and works because that anchor was never disturbed.
+    1. Heading paragraph — real "Heading 3" style, so Word's navigation
+       pane and outline view list it (bold+color alone would not).
+    2. Intro paragraph.
+    3. Proof table (4 cols, header + 1-3 evidence rows).
 
-- Run from a CLEAN COPY of the source docx (cat > target) before every
-  full pass — partial state from prior runs is the #1 source of bugs.
+Anchoring
+---------
+officecli's /body/tbl[N] index is NOT stable across adds: inserting a
+table after tbl[3] makes the new table tbl[4] and pushes the original
+tbl[4] to tbl[5], so tbl[N] becomes ambiguous by the second iteration.
 
-- Cells that may contain commas / quotes / semicolons are CSV-quoted
-  by doubling the quote character.
+The stable anchor is instead the original empty paragraph that
+immediately follows each evaluation table — its w14:paraId is baked into
+the OOXML and never shifts. Both backends anchor on that paraId (see
+ANCHORS) rather than on a positional index.
+
+Backends
+--------
+``--backend=officecli`` (default, verified) shells out to the officecli
+binary using ``add --before /body/p[@paraId=ANCHOR]``. Since --before
+always inserts immediately before the anchor, elements added later are
+pushed farther out, so this backend must insert in REVERSE order
+(table → intro → heading) to end up with heading → intro → table.
+
+``--backend=python-docx`` needs no external binary (suits CI) and uses
+lxml ``addprevious``, which lets it insert in natural order.
+
+Both backends produce equivalent output: same heading text, intro text,
+proof-table contents and anchor choice.
+
+Operational notes
+-----------------
+- Always start from a CLEAN COPY of the source docx (overwrite target
+  with source bytes) before a full pass — partial state from a prior run
+  is the #1 source of bugs.
+- Cells that may contain commas / quotes / semicolons are CSV-quoted by
+  doubling the quote character (officecli backend only).
 """
 
 from __future__ import annotations
 
 import argparse
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -41,21 +59,14 @@ PROOF_DIR = REPO_ROOT / ".cache" / "proof"
 # navigation pane / outline view rather than merely looking bold.
 HEADING_STYLE_NAME = "Heading 3"
 
+# Paragraph count of the pristine source docx, asserted after each reset
+# to catch a partially-written target left over from a previous run.
+EXPECTED_SOURCE_PARAGRAPHS = 124
 
-# Anchor strategy.
-#
-# officecli's /body/tbl[N] index is NOT stable across adds: when we
-# insert a new table after tbl[3], the new table is assigned index
-# tbl[4] and the original tbl[4] becomes tbl[5]. So anchoring on
-# tbl[N] becomes ambiguous by the second iteration.
-#
-# The truly stable anchor is the original empty paragraph that
-# immediately follows each evaluation table — it has a stable paraId
-# baked into the OOXML. We use ``--before /body/p[@paraId=ANCHOR]``
-# which inserts at that exact spot regardless of intervening adds.
-#
-# Empty paragraphs immediately following each /body/tbl[3..13] (read
-# from the source docx with ``officecli get /body --depth 1``):
+
+# Stable anchors (see "Anchoring" in the module docstring): the empty
+# paragraph immediately following each /body/tbl[3..13], read from the
+# source docx with ``officecli get /body --depth 1``.
 
 ANCHORS = {
     3:  "25D99B3A",  # tbl[3] → empty → "MCP开发" (1-2 heading)
@@ -143,8 +154,7 @@ def force_reset() -> None:
     )
     # Overwrite target with raw source bytes.
     TARGET.parent.mkdir(parents=True, exist_ok=True)
-    SOURCE_BYTES = SOURCE.read_bytes()
-    TARGET.write_bytes(SOURCE_BYTES)
+    TARGET.write_bytes(SOURCE.read_bytes())
     # Confirm no resident lingers.
     subprocess.run(
         ["officecli", "close", str(TARGET)],
@@ -478,11 +488,15 @@ def run_officecli_backend() -> int:
     print(f"resetting {TARGET} from source...")
     force_reset()
 
-    # Sanity check
+    # Sanity check. ``officecli view stats`` prints e.g.
+    # "Paragraphs: 124 | Words: 129 | Total Characters: 1599" — the old
+    # probe looked for "124 paragraphs", which never matches, so this
+    # WARN fired on every single run regardless of the actual count.
     res = officecli("view", str(TARGET), "stats")
     first_line = res.stdout.splitlines()[0] if res.stdout else ""
-    if "124 paragraphs" not in first_line:
-        print(f"WARN: expected 124 paragraphs after reset, got: {first_line}")
+    if f"Paragraphs: {EXPECTED_SOURCE_PARAGRAPHS}" not in first_line:
+        print(f"WARN: expected {EXPECTED_SOURCE_PARAGRAPHS} paragraphs "
+              f"after reset, got: {first_line}")
 
     # Hold the docx resident explicitly so the auto-idle 60s flush
     # never trips between calls. Without this the 33 calls (11 x 3)
