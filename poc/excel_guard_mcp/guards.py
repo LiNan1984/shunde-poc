@@ -3,8 +3,11 @@
 
 from __future__ import annotations
 
+import errno
+import io
 import logging
 import os
+import stat
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -35,20 +38,110 @@ logger = logging.getLogger("poc.excel_guard")
 
 # --- Sandbox ------------------------------------------------------------------
 
-def _workspace_root() -> Path:
+# Race-free open flags (H1):
+#   O_NOFOLLOW - the opened path component must never itself be a symlink at
+#                the instant of the open(2) call (atomic in the kernel).
+#   O_NONBLOCK - a FIFO/device placed in the workspace cannot block the open;
+#                the fstat regular-file check below rejects it anyway.
+#   O_CLOEXEC  - do not leak the descriptor into child processes.
+# Intermediate directories are pinned via openat(dir_fd=...) so a symlink
+# swapped into a path component *after* resolve() makes the next open fail
+# with ELOOP instead of being followed outside the sandbox (TOCTOU).
+_OPEN_FLAGS = os.O_RDONLY | os.O_NOFOLLOW
+if hasattr(os, "O_NONBLOCK"):
+    _OPEN_FLAGS |= os.O_NONBLOCK
+if hasattr(os, "O_CLOEXEC"):
+    _OPEN_FLAGS |= os.O_CLOEXEC
+_DIR_OPEN_FLAGS = _OPEN_FLAGS | os.O_DIRECTORY
+
+# Roots for which the "sandbox active" audit line was already emitted (stderr).
+_LOGGED_ROOTS: set[str] = set()
+
+
+def _safe_name(file_path: Path) -> str:
+    """Return a sanitized filename safe for interpolation into messages."""
+    name = file_path.name
+    # Strip control characters to prevent prompt-injection via crafted filenames
+    return "".join(c for c in name if c.isprintable())
+
+
+def _workspace_root() -> tuple[Path | None, dict | None]:
+    """Return the validated sandbox root, or (None, error_dict).
+
+    Fail-closed (M1): a configured root that is missing, not a directory, or
+    the filesystem root '/' denies *every* operation instead of silently
+    treating the whole filesystem as the workspace. With no env configured we
+    fall back to the repository checkout root (always a real directory).
+    """
     raw = os.environ.get("POC_WORKSPACE") or os.environ.get("QWENPAW_WORKING_DIR")
     if raw:
-        return Path(raw).expanduser().resolve()
-    # Default: repository root (parent of poc/)
-    return Path(__file__).resolve().parents[2]
+        try:
+            root = Path(raw).expanduser().resolve()
+        except (OSError, ValueError) as exc:
+            logger.error("invalid POC_WORKSPACE value %r: %s", raw, exc)
+            return None, {
+                "ok": False,
+                "issue": "workspace_invalid",
+                "message": (
+                    "沙箱根目录无效 / Invalid workspace root: "
+                    f"路径无法解析 / Cannot resolve: {exc}（fail-closed 拒绝）。"
+                ),
+            }
+        if str(root) == os.sep:
+            logger.error(
+                "workspace root rejected: filesystem root '/' is forbidden (fail-closed)"
+            )
+            return None, {
+                "ok": False,
+                "issue": "workspace_invalid",
+                "message": (
+                    "沙箱根目录无效 / Invalid workspace root: "
+                    "不能使用文件系统根目录 '/'（等于关闭沙箱，fail-closed 拒绝）。"
+                    "请把 POC_WORKSPACE 设置为专用工作目录。"
+                ),
+            }
+        if not root.is_dir():
+            logger.error(
+                "workspace root rejected: not an existing directory: %s", raw
+            )
+            return None, {
+                "ok": False,
+                "issue": "workspace_invalid",
+                "message": (
+                    "沙箱根目录无效 / Invalid workspace root: "
+                    f"目录不存在或不是目录 / not an existing directory: {raw}。"
+                    "请检查 POC_WORKSPACE 配置（fail-closed 拒绝）。"
+                ),
+            }
+    else:
+        # Default: repository root (parent of poc/)
+        root = Path(__file__).resolve().parents[2]
+        if not root.is_dir():
+            logger.error("default workspace root missing: %s", root)
+            return None, {
+                "ok": False,
+                "issue": "workspace_invalid",
+                "message": (
+                    "沙箱根目录无效 / Invalid workspace root: "
+                    f"默认根目录不存在 / default root missing: {root}。"
+                ),
+            }
+
+    key = str(root)
+    if key not in _LOGGED_ROOTS:
+        # Audit marker. stderr ONLY — stdout is the MCP JSON-RPC channel (red line 4).
+        logger.warning("sandbox workspace root active: %s", root)
+        _LOGGED_ROOTS.add(key)
+    return root, None
 
 
 def _resolve_allowed_path(path: Any) -> tuple[Path | None, dict | None]:
-    """Resolve path and enforce workspace sandbox.
+    """Resolve path and enforce workspace sandbox containment.
 
-    Returns (path, None) on success, or (None, error_dict) on denial/missing shape.
-    error_dict uses ok/issue/message keys for corrupt-style callers; encoding/chunk
-    callers remap as needed.
+    Returns (resolved_path, None) on success, or (None, error_dict) on
+    denial/invalid input. The returned path has only been *lexically*
+    validated; reading MUST go through ``_open_contained`` so that a symlink
+    swapped in after this check cannot redirect the actual open (H1).
     """
     # Validate input type up front (M7)
     if not isinstance(path, str):
@@ -64,8 +157,14 @@ def _resolve_allowed_path(path: Any) -> tuple[Path | None, dict | None]:
             "message": "路径不能为空 / path must not be empty",
         }
 
-    root = _workspace_root()
+    root, root_err = _workspace_root()
+    if root_err is not None:
+        return None, root_err
+    assert root is not None
+
     try:
+        # strict=False: dangling links/loops keep an unresolved tail; the
+        # openat+O_NOFOLLOW walk in _open_contained classifies them safely.
         file_path = Path(path).expanduser().resolve(strict=False)
     except (OSError, ValueError) as exc:
         # ValueError catches embedded null bytes on some platforms
@@ -76,88 +175,200 @@ def _resolve_allowed_path(path: Any) -> tuple[Path | None, dict | None]:
             "message": f"路径无法解析 / Cannot resolve path: {exc}",
         }
 
-    try:
-        if not file_path.is_relative_to(root):
-            logger.warning("path outside workspace: %s", path)
-            return None, {
-                "ok": False,
-                "issue": "path_denied",
-                "message": (
-                    f"路径越界 / Path outside workspace root ({root}): {path}"
-                ),
-            }
-    except AttributeError:
-        # Python < 3.9 fallback — not expected on 3.13+
-        if root not in file_path.parents and file_path != root:
-            logger.warning("path outside workspace: %s", path)
-            return None, {
-                "ok": False,
-                "issue": "path_denied",
-                "message": (
-                    f"路径越界 / Path outside workspace root ({root}): {path}"
-                ),
-            }
-
-    try:
-        is_symlink = file_path.is_symlink()
-    except OSError as exc:
-        logger.warning("symlink check failed: %s", exc)
+    if not file_path.is_relative_to(root):
+        logger.warning("path outside workspace: %s", path)
         return None, {
             "ok": False,
             "issue": "path_denied",
-            "message": f"路径无法访问 / Cannot access path: {exc}",
+            "message": (
+                f"路径越界 / Path outside workspace root ({root}): {path}"
+            ),
         }
-
-    if is_symlink:
-        try:
-            real = file_path.resolve(strict=True)
-            if not real.is_relative_to(root):
-                logger.warning("symlink escapes workspace: %s", path)
-                return None, {
-                    "ok": False,
-                    "issue": "path_denied",
-                    "message": (
-                        f"符号链接越界 / Symlink escapes workspace: {path}"
-                    ),
-                }
-            file_path = real
-        except OSError as exc:
-            return None, {
-                "ok": False,
-                "issue": "path_denied",
-                "message": f"符号链接无效 / Invalid symlink: {exc}",
-            }
 
     return file_path, None
 
 
-def _safe_name(file_path: Path) -> str:
-    """Return a sanitized filename safe for interpolation into messages."""
-    name = file_path.name
-    # Strip control characters to prevent prompt-injection via crafted filenames
-    return "".join(c for c in name if c.isprintable())
+def _classify_open_error(exc: OSError, file_path: Path) -> dict:
+    """Map a safe-open OSError to the structured error shape."""
+    name = _safe_name(file_path)
+    if isinstance(exc, FileNotFoundError):
+        return {
+            "ok": False,
+            "issue": "missing",
+            "message": f"文件不存在 / File not found: {name}",
+        }
+    if isinstance(exc, IsADirectoryError) or exc.errno == errno.EISDIR:
+        return {
+            "ok": False,
+            "issue": "invalid_path",
+            "message": (
+                "路径是目录，不是文件 / Path is a directory, not a file: "
+                f"{name}"
+            ),
+        }
+    if exc.errno == errno.ELOOP:
+        return {
+            "ok": False,
+            "issue": "path_denied",
+            "message": (
+                "符号链接被拒绝 / Symlink rejected at open (O_NOFOLLOW): "
+                f"{name}。路径可能在检查后被替换，已按 TOCTOU 防护拒绝。"
+            ),
+        }
+    return {
+        "ok": False,
+        "issue": "unreadable",
+        "message": f"文件无法读取 / Cannot read file: {exc}",
+    }
+
+
+class _NoClose:
+    """Proxy over a binary file object whose ``close()`` is a no-op.
+
+    ``zipfile.ZipFile.close()`` (and openpyxl through its archive) always
+    closes the wrapped stream. The guard pipeline opens a SINGLE descriptor
+    (is_zipfile -> ZipFile -> openpyxl, H1), so consumers must not close the
+    underlying fd; the owning function closes it in a ``finally`` block.
+    """
+
+    def __init__(self, fh: io.BufferedReader) -> None:
+        self._fh = fh
+
+    def close(self) -> None:
+        return None
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._fh, name)
+
+
+def _open_contained(
+    file_path: Path,
+) -> tuple[io.BufferedReader | None, dict | None]:
+    """Open a resolved, containment-checked path with one race-free fd.
+
+    Walk from the sandbox-root directory fd with openat(2): every
+    intermediate component is opened O_NOFOLLOW|O_DIRECTORY and pinned by fd
+    (renaming/swapping an ancestor afterwards cannot affect the walk), and
+    the final component is opened O_RDONLY|O_NOFOLLOW so a final-component
+    symlink — including one swapped in between resolve() and this open —
+    fails with ELOOP instead of being followed. The returned fd is then
+    fstat-checked to be a regular file. Caller owns (and must close) the
+    returned file object.
+    """
+    root, root_err = _workspace_root()
+    if root_err is not None:
+        return None, root_err
+    assert root is not None
+
+    try:
+        rel = file_path.relative_to(root)
+    except ValueError:
+        logger.warning("open rejected: path outside workspace: %s", file_path)
+        return None, {
+            "ok": False,
+            "issue": "path_denied",
+            "message": (
+                f"路径越界 / Path outside workspace root ({root}): {file_path}"
+            ),
+        }
+
+    parts = rel.parts
+    if not parts:
+        return None, {
+            "ok": False,
+            "issue": "invalid_path",
+            "message": "路径是目录，不是文件 / Path is a directory, not a file.",
+        }
+
+    dir_fds: list[int] = []
+    file_fd = -1
+    try:
+        anchor = os.open(root, _DIR_OPEN_FLAGS)
+        dir_fds.append(anchor)
+        for name in parts[:-1]:
+            dfd = os.open(name, _DIR_OPEN_FLAGS, dir_fd=dir_fds[-1])
+            dir_fds.append(dfd)
+        file_fd = os.open(parts[-1], _OPEN_FLAGS, dir_fd=dir_fds[-1])
+
+        st = os.fstat(file_fd)
+        if stat.S_ISDIR(st.st_mode):
+            return None, {
+                "ok": False,
+                "issue": "invalid_path",
+                "message": (
+                    "路径是目录，不是文件 / Path is a directory, not a file: "
+                    f"{_safe_name(file_path)}"
+                ),
+            }
+        if not stat.S_ISREG(st.st_mode):
+            # FIFO / socket / device — O_NONBLOCK kept the open from hanging.
+            return None, {
+                "ok": False,
+                "issue": "invalid_path",
+                "message": (
+                    "非常规文件，拒绝读取 / Not a regular file, refused: "
+                    f"{_safe_name(file_path)}"
+                ),
+            }
+
+        fh = os.fdopen(file_fd, "rb")
+        file_fd = -1  # fdopen took ownership
+        return fh, None
+    except OSError as exc:
+        err = _classify_open_error(exc, file_path)
+        logger.warning("safe open denied (%s): %s", err["issue"], exc)
+        return None, err
+    finally:
+        if file_fd != -1:
+            try:
+                os.close(file_fd)
+            except OSError:
+                pass
+        for dfd in reversed(dir_fds):
+            try:
+                os.close(dfd)
+            except OSError:
+                pass
+
+
+def _oversize_error(size: int, file_path: Path) -> dict | None:
+    """Return the too_large error dict if size exceeds the limit."""
+    if size <= _MAX_FILE_BYTES:
+        return None
+    return {
+        "ok": False,
+        "issue": "too_large",
+        "message": (
+            f"文件过大 / File too large: {_safe_name(file_path)} "
+            f"({size} bytes > {_MAX_FILE_BYTES})。请先拆分或压缩。"
+        ),
+    }
 
 
 def _check_file_size(file_path: Path) -> dict | None:
-    """Return error dict if file exceeds size limit, None otherwise."""
+    """Pre-open size estimate via lstat (no symlink follow — TOCTOU-safe)."""
     try:
-        size = file_path.stat().st_size
+        size = file_path.lstat().st_size
     except OSError as exc:
         return {
             "ok": False,
             "issue": "unreadable",
             "message": f"无法读取文件 / Cannot read file: {exc}",
         }
-    if size > _MAX_FILE_BYTES:
+    return _oversize_error(size, file_path)
+
+
+def _check_fh_size(fh: io.BufferedReader, file_path: Path) -> dict | None:
+    """Authoritative limit check against the OPENED inode (fstat, swap-proof)."""
+    try:
+        size = os.fstat(fh.fileno()).st_size
+    except OSError as exc:
         return {
             "ok": False,
-            "issue": "too_large",
-            "message": (
-                f"文件过大 / File too large: {_safe_name(file_path)} "
-                f"({size} bytes > {_MAX_FILE_BYTES})。请先拆分或压缩。"
-            ),
+            "issue": "unreadable",
+            "message": f"无法读取文件 / Cannot read file: {exc}",
         }
-    return None
+    return _oversize_error(size, file_path)
 
 
 # --- detect_corrupt_workbook --------------------------------------------------
@@ -178,16 +389,6 @@ def detect_corrupt_workbook(path: str) -> dict:
     if file_path is None:
         return err
 
-    if not file_path.exists():
-        return {
-            "ok": False,
-            "issue": "missing",
-            "message": (
-                f"文件不存在 / File not found: {path}。"
-                "请确认路径是否正确。"
-            ),
-        }
-
     if file_path.is_dir():
         return {
             "ok": False,
@@ -196,6 +397,24 @@ def detect_corrupt_workbook(path: str) -> dict:
                 f"路径是目录，不是文件 / Path is a directory, not a file: "
                 f"{_safe_name(file_path)}"
             ),
+        }
+
+    # Use lstat so symlink-loops/dangling links are seen as present;
+    # subsequent O_NOFOLLOW open classifies ELOOP/ENOENT correctly.
+    try:
+        file_path.lstat()
+    except OSError as exc:
+        return {
+            "ok": False,
+            "issue": "missing",
+            "message": (
+                f"文件不存在 / File not found: {path}。"
+                "请确认路径是否正确。"
+            ),
+        } if isinstance(exc, FileNotFoundError) else {
+            "ok": False,
+            "issue": "unreadable",
+            "message": f"无法读取文件 / Cannot read file: {exc}",
         }
 
     size_err = _check_file_size(file_path)
@@ -235,10 +454,18 @@ def detect_corrupt_workbook(path: str) -> dict:
             ),
         }
 
-    # OOXML formats: full check
+    # OOXML formats: full check (TOCTOU-safe: open via _open_contained)
     if suffix in _XLSX_SUFFIXES:
+        fh, open_err = _open_contained(file_path)
+        if open_err is not None:
+            return open_err
+        assert fh is not None
         try:
-            if not zipfile.is_zipfile(file_path):
+            try:
+                head = fh.read(4)
+            except OSError as exc:
+                return _classify_open_error(exc, file_path)
+            if head[:4] != b"PK\x03\x04":
                 return {
                     "ok": False,
                     "issue": "corrupt",
@@ -248,71 +475,104 @@ def detect_corrupt_workbook(path: str) -> dict:
                         "无法用 openpyxl 打开。请重新导出或修复后再试。"
                     ),
                 }
-            with zipfile.ZipFile(file_path, "r") as zf:
+            try:
+                fh.seek(0)
+            except OSError:
+                pass
+            try:
+                zf = zipfile.ZipFile(fh, "r")
+            except (zipfile.BadZipFile, KeyError, ValueError) as exc:
+                return {
+                    "ok": False,
+                    "issue": "corrupt",
+                    "message": (
+                        "检测到损坏的 Excel 工作簿 / Corrupt workbook detected: "
+                        f"{_safe_name(file_path)}。ZIP 包结构不完整或已截断（{type(exc).__name__}），"
+                        "无法用 openpyxl 打开。请重新导出或修复后再试。"
+                    ),
+                }
+            except OSError as exc:
+                return _classify_open_error(exc, file_path)
+            try:
                 entries = zf.infolist()
-                if len(entries) > _MAX_ZIP_ENTRIES:
-                    return {
-                        "ok": False,
-                        "issue": "unsafe_archive",
-                        "message": (
-                            f"ZIP 条目过多 / Too many ZIP entries: "
-                            f"{len(entries)} > {_MAX_ZIP_ENTRIES}。"
-                            "文件可能异常，请检查来源。"
-                        ),
-                    }
-                names = zf.namelist()
-                if "[Content_Types].xml" not in names:
-                    return {
-                        "ok": False,
-                        "issue": "corrupt",
-                        "message": (
-                            "检测到损坏的 Excel 工作簿 / Corrupt workbook detected: "
-                            f"{_safe_name(file_path)}。ZIP 包缺少 [Content_Types].xml，"
-                            "结构不完整。请重新导出或修复后再试。"
-                        ),
-                    }
-            load_workbook(file_path, read_only=True, data_only=True).close()
-        except MemoryError:
+            except (zipfile.BadZipFile, KeyError, ValueError) as exc:
+                return {
+                    "ok": False,
+                    "issue": "corrupt",
+                    "message": (
+                        "检测到损坏的 Excel 工作簿 / Corrupt workbook detected: "
+                        f"{_safe_name(file_path)}。ZIP 包条目读取失败（{type(exc).__name__}），"
+                        "结构不完整。请重新导出或修复后再试。"
+                    ),
+                }
+            except OSError as exc:
+                return _classify_open_error(exc, file_path)
+            if len(entries) > _MAX_ZIP_ENTRIES:
+                return {
+                    "ok": False,
+                    "issue": "unsafe_archive",
+                    "message": (
+                        f"ZIP 条目过多 / Too many ZIP entries: "
+                        f"{len(entries)} > {_MAX_ZIP_ENTRIES}。"
+                        "文件可能异常，请检查来源。"
+                    ),
+                }
+            names = zf.namelist()
+            if "[Content_Types].xml" not in names:
+                return {
+                    "ok": False,
+                    "issue": "corrupt",
+                    "message": (
+                        "检测到损坏的 Excel 工作簿 / Corrupt workbook detected: "
+                        f"{_safe_name(file_path)}。ZIP 包缺少 [Content_Types].xml，"
+                        "结构不完整。请重新导出或修复后再试。"
+                    ),
+                }
+            try:
+                wb = load_workbook(fh, read_only=True, data_only=True)
+                wb.close()
+            except MemoryError:
+                return {
+                    "ok": False,
+                    "issue": "too_large",
+                    "message": (
+                        "文件解析内存不足 / Out of memory while parsing: "
+                        f"{_safe_name(file_path)}。请减小文件大小后再试。"
+                    ),
+                }
+            except (zipfile.BadZipFile, KeyError, ValueError) as exc:
+                return {
+                    "ok": False,
+                    "issue": "corrupt",
+                    "message": (
+                        "检测到损坏的 Excel 工作簿 / Corrupt workbook detected: "
+                        f"{_safe_name(file_path)}。解析失败：{type(exc).__name__}。"
+                        "请重新导出或修复后再试。"
+                    ),
+                }
+            except OSError as exc:
+                return _classify_open_error(exc, file_path)
+            except Exception as exc:  # noqa: BLE001 - last-resort catch for openpyxl
+                logger.warning("unexpected workbook open failure: %s", exc)
+                return {
+                    "ok": False,
+                    "issue": "corrupt",
+                    "message": (
+                        "检测到损坏或不支持的 Excel 工作簿 / Corrupt or unsupported workbook: "
+                        f"{_safe_name(file_path)}。打开失败：{type(exc).__name__}。"
+                        "请重新导出或修复后再试。"
+                    ),
+                }
             return {
-                "ok": False,
-                "issue": "too_large",
-                "message": (
-                    "文件解析内存不足 / Out of memory while parsing: "
-                    f"{_safe_name(file_path)}。请减小文件大小后再试。"
-                ),
+                "ok": True,
+                "issue": "",
+                "message": f"工作簿正常 / Workbook OK: {_safe_name(file_path)}",
             }
-        except (zipfile.BadZipFile, KeyError, ValueError) as exc:
-            return {
-                "ok": False,
-                "issue": "corrupt",
-                "message": (
-                    "检测到损坏的 Excel 工作簿 / Corrupt workbook detected: "
-                    f"{_safe_name(file_path)}。解析失败：{type(exc).__name__}。"
-                    "请重新导出或修复后再试。"
-                ),
-            }
-        except OSError as exc:
-            return {
-                "ok": False,
-                "issue": "unreadable",
-                "message": f"文件无法读取 / Cannot read file: {exc}",
-            }
-        except Exception as exc:  # noqa: BLE001 - last-resort catch for openpyxl
-            logger.warning("unexpected workbook open failure: %s", exc)
-            return {
-                "ok": False,
-                "issue": "corrupt",
-                "message": (
-                    "检测到损坏或不支持的 Excel 工作簿 / Corrupt or unsupported workbook: "
-                    f"{_safe_name(file_path)}。打开失败：{type(exc).__name__}。"
-                    "请重新导出或修复后再试。"
-                ),
-            }
-        return {
-            "ok": True,
-            "issue": "",
-            "message": f"工作簿正常 / Workbook OK: {_safe_name(file_path)}",
-        }
+        finally:
+            try:
+                fh.close()
+            except OSError:
+                pass
 
     # Unknown extension
     return {
@@ -506,6 +766,86 @@ def chunk_large_workbook(path: str, max_rows: int = 5000) -> dict:
             "max_sheet_rows": 0,
             "chunks": [],
             "message": size_err["message"],
+        }
+
+    # CSV / plain text branch: count newlines with constant memory (binary
+    # streaming, 1 MiB per read — never read() the whole file). Return shape
+    # is identical to the xlsx branch (same keys / chunk semantics, header
+    # row counted as row 1 just like openpyxl's max_row).
+    if file_path.suffix.lower() in _TEXT_SUFFIXES:
+        try:
+            newline_count = 0
+            last_byte = -1
+            with open(file_path, "rb") as fh:
+                while True:
+                    buf = fh.read(1 << 20)
+                    if not buf:
+                        break
+                    newline_count += buf.count(b"\n")
+                    last_byte = buf[-1]
+        except MemoryError:
+            return {
+                "needs_chunking": False,
+                "total_rows": 0,
+                "max_sheet_rows": 0,
+                "chunks": [],
+                "message": "文件读取内存不足 / Out of memory while reading text file",
+            }
+        except OSError as exc:
+            return {
+                "needs_chunking": False,
+                "total_rows": 0,
+                "max_sheet_rows": 0,
+                "chunks": [],
+                "message": (
+                    "无法打开文本文件做分块 / Cannot open text file for chunking: "
+                    f"{type(exc).__name__}"
+                ),
+            }
+
+        # A final fragment without a trailing LF is still one (last) line;
+        # CRLF is counted once because only \n is counted.
+        total_lines = newline_count + (1 if last_byte not in (-1, 0x0A) else 0)
+
+        text_chunks: list[dict] = []
+        if total_lines > max_rows:
+            start = 1
+            while start <= total_lines:
+                if len(text_chunks) >= _MAX_CHUNKS:
+                    break
+                end = min(start + max_rows - 1, total_lines)
+                text_chunks.append(
+                    {"start_row": start, "end_row": end, "sheet": file_path.stem}
+                )
+                start = end + 1
+
+        needs_text_chunking = total_lines > max_rows
+        if needs_text_chunking:
+            if len(text_chunks) >= _MAX_CHUNKS:
+                text_message = (
+                    f"分块数量达上限 / Chunk count capped at {_MAX_CHUNKS}: "
+                    f"max_sheet_rows={total_lines}, max_rows={max_rows}。"
+                    "请先筛选数据减小范围。"
+                )
+            else:
+                text_message = (
+                    f"文本文件行数过大，需要分块处理 / Large text file needs chunking: "
+                    f"max_sheet_rows={total_lines} > max_rows={max_rows}，"
+                    f"已生成 {len(text_chunks)} 个分块范围。"
+                )
+        else:
+            text_message = (
+                f"行数未超限，无需分块 / No chunking needed: "
+                f"max_sheet_rows={total_lines} <= max_rows={max_rows}"
+            )
+            text_chunks = []
+
+        return {
+            "needs_chunking": needs_text_chunking,
+            "total_rows": total_lines,
+            "max_sheet_rows": total_lines,
+            "chunks": text_chunks,
+            "message": text_message,
         }
 
     try:
