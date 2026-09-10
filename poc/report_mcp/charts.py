@@ -114,11 +114,17 @@ def _default_output_path(chart_type: str, user_path: str = "") -> Path:
     return out_dir / f"{chart_type}_{os.getpid()}_{abs(hash(chart_type)) % 10000}.png"
 
 
-def _save_figure(fig: plt.Figure, path: Path, dpi: int) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fig.tight_layout()
-    fig.savefig(path, dpi=dpi, bbox_inches="tight")
-    plt.close(fig)
+def _save_figure(fig: plt.Figure, path: Path, dpi: int) -> str | None:
+    """Create parent dirs and save the figure. Returns an error message or None."""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fig.tight_layout()
+        fig.savefig(path, dpi=dpi, bbox_inches="tight")
+    except OSError as exc:
+        return f"图表保存失败 / Failed to save chart: {exc}"
+    finally:
+        plt.close(fig)
+    return None
 
 
 def _check_columns(df: pd.DataFrame, required: list[str]) -> str | None:
@@ -188,7 +194,9 @@ def render_bar(
         plt.close(fig)
         return _err(f"柱状图渲染失败 / Failed to render bar chart: {exc}")
 
-    _save_figure(fig, out, dpi)
+    save_err = _save_figure(fig, out, dpi)
+    if save_err:
+        return _err(save_err)
     return _ok("bar", out, dpi)
 
 
@@ -237,7 +245,9 @@ def render_line(
         plt.close(fig)
         return _err(f"折线图渲染失败 / Failed to render line chart: {exc}")
 
-    _save_figure(fig, out, dpi)
+    save_err = _save_figure(fig, out, dpi)
+    if save_err:
+        return _err(save_err)
     return _ok("line", out, dpi)
 
 
@@ -278,7 +288,9 @@ def render_pie(
         plt.close(fig)
         return _err(f"饼图渲染失败 / Failed to render pie chart: {exc}")
 
-    _save_figure(fig, out, dpi)
+    save_err = _save_figure(fig, out, dpi)
+    if save_err:
+        return _err(save_err)
     return _ok("pie", out, dpi)
 
 
@@ -325,7 +337,9 @@ def render_scatter(
         plt.close(fig)
         return _err(f"散点图渲染失败 / Failed to render scatter: {exc}")
 
-    _save_figure(fig, out, dpi)
+    save_err = _save_figure(fig, out, dpi)
+    if save_err:
+        return _err(save_err)
     return _ok("scatter", out, dpi)
 
 
@@ -391,7 +405,9 @@ def render_heatmap(
         plt.close(fig)
         return _err(f"热力图渲染失败 / Failed to render heatmap: {exc}")
 
-    _save_figure(fig, out, dpi)
+    save_err = _save_figure(fig, out, dpi)
+    if save_err:
+        return _err(save_err)
     return _ok("heatmap", out, dpi)
 
 

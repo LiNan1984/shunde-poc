@@ -1,0 +1,20 @@
+{
+  "_description": "示例数据：顺德分行 2025 年第三季度各支行零售业务表现。供 scripts/report_demo.py 一键演示脚本读取，含 1 交叉表 + 5 图的完整数据集。",
+  "records": [
+    {"branch": "大良支行", "quarter": "2025Q3", "product": "储蓄存款", "amount": 12800000, "customers": 4520, "region": "中心区"},
+    {"branch": "大良支行", "quarter": "2025Q3", "product": "个人贷款", "amount":  8600000, "customers": 1180, "region": "中心区"},
+    {"branch": "大良支行", "quarter": "2025Q3", "product": "理财",     "amount":  5400000, "customers":  920, "region": "中心区"},
+    {"branch": "容桂支行", "quarter": "2025Q3", "product": "储蓄存款", "amount": 11200000, "customers": 4010, "region": "工业重镇"},
+    {"branch": "容桂支行", "quarter": "2025Q3", "product": "个人贷款", "amount":  7900000, "customers": 1095, "region": "工业重镇"},
+    {"branch": "容桂支行", "quarter": "2025Q3", "product": "理财",     "amount":  4800000, "customers":  810, "region": "工业重镇"},
+    {"branch": "伦教支行", "quarter": "2025Q3", "product": "储蓄存款", "amount":  6800000, "customers": 2380, "region": "中心区"},
+    {"branch": "伦教支行", "quarter": "2025Q3", "product": "个人贷款", "amount":  4500000, "customers":  640, "region": "中心区"},
+    {"branch": "伦教支行", "quarter": "2025Q3", "product": "理财",     "amount":  2600000, "customers":  450, "region": "中心区"},
+    {"branch": "勒流支行", "quarter": "2025Q3", "product": "储蓄存款", "amount":  5900000, "customers": 2010, "region": "工业重镇"},
+    {"branch": "勒流支行", "quarter": "2025Q3", "product": "个人贷款", "amount":  3700000, "customers":  520, "region": "工业重镇"},
+    {"branch": "勒流支行", "quarter": "2025Q3", "product": "理财",     "amount":  2100000, "customers":  360, "region": "工业重镇"},
+    {"branch": "陈村支行", "quarter": "2025Q3", "product": "储蓄存款", "amount":  4500000, "customers": 1640, "region": "北部商圈"},
+    {"branch": "陈村支行", "quarter": "2025Q3", "product": "个人贷款", "amount":  2900000, "customers":  410, "region": "北部商圈"},
+    {"branch": "陈村支行", "quarter": "2025Q3", "product": "理财",     "amount":  1700000, "customers":  290, "region": "北部商圈"}
+  ]
+}
