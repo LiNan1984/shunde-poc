@@ -90,7 +90,7 @@ git -C QwenPaw describe --tags --exact-match   # 期望输出：v2.0.0
 | P4 部署预研 | `docs/superpowers/p4-deployment-research.md` | `/health` 缺失确认 + 镜像体积分析 |
 | MaaS 探针约定 | `.env.example` + 评估 §7 | Base URL / model 用环境变量；**勿提交 Bearer** |
 | 评估文档测试 | `tests/test_poc_*.py` | 结构校验 |
-| **全量测试** | `pytest poc/tests tests/ -v` | **101 passed** |
+| **全量测试** | `pytest poc/tests tests/ -v` | **225 passed, 1 skipped** |
 
 ### Phase 1 MCP 工具一览
 
@@ -110,16 +110,16 @@ git -C QwenPaw describe --tags --exact-match   # 期望输出：v2.0.0
 
 | 优先级 | 工作 | 状态 | 建议人·日 |
 |--------|------|------|-----------|
-| **立刻** | 将 Phase 1 MCP/Skill **挂到 QwenPaw Console** 并彩排三种异常文件 | 文档有步骤，未实机挂载验收 | 0.5～1 |
+| **立刻** | 把 Phase 1/2/3 MCP+Skill 与两个插件（`poc/plugins/health`、`poc/plugins/ops-telemetry`）**挂到 QwenPaw Console** 彩排 | 自动化部分由 `scripts/mcp_stdio_smoke.py` 验证；GUI 仅人工 | 0.5～1 |
 | **立刻** | 确认行方模型：**Qwen3.6-35B/27B**（当前探针曾用 `qwen3.5-35b-a3b`，不合规口径） | 未对齐 | 0.5～1 |
-| P1 收尾 | 12 道 Excel 测题预跑答卷 + Agent 装配剧本 | 未做；测试已从 13 → 73 | 2～3 |
-| **P2** | 报告可视化 Skill（docx + 交叉表 + 五类图） | **脚手架完成**（7 MCP 工具 + Skill + 8 测试 + 101 全绿） | 4～6（剩余 2～3 人·日） |
-| P3 | 运营助手 + HOOK 四类埋点 | 未开始 | 5～7 |
-| P4 | Dockerfile 精简、`GET /health`、资源截图 | 已预研（确认无 `/health`，镜像偏大原因已定位）；未实现 | 3～5 |
-| P5 | 多模态知识库（ES/MySQL/GALASYBASE/MinerU…） | 未开始（最大块） | 12～18 |
-| P6 | HARNESS 三方案讲义与调参演示 | 未开始 | 2～3 |
+| ✅ P1 收尾 | 12 道 Excel 测题预跑答卷 + Agent 装配剧本 | 已完成 `docs/excel-12题标准答卷.md` + `docs/excel-agent装配剧本.md` | 0 |
+| ✅ P2 | 报告可视化 Skill + 7 工具收尾 | 覆盖率 charts 98% / crosstab 100% / docx_gen 89%；CSV 分块、一键 demo、stdio 彩排齐备 | 0 |
+| ✅ P3 | 运营助手 + HOOK 四类埋点 | `poc/ops_mcp/`（3 工具）+ `poc/hooks/ops_hooks.py`（6 HookBase 覆盖 5 个 Phase）+ `poc/plugins/ops-telemetry` 注册 | 0 |
+| ✅ P4 | Dockerfile 精简 + `GET /health` | `poc/deploy/Dockerfile.poc` multi-stage slim（无 XFCE/Chromium）；`poc/plugins/health/` 提供 `/api/poc/health` | 0 |
+| P5 | 多模态知识库（ES/MySQL/GALASYBASE/MinerU…） | 未开始（最大块，等行方端点） | 12～18 |
+| ✅ P6 | HARNESS 三方案讲义与调参演示 | `docs/harness/{01-context-compression,02-long-term-memory,03-sandbox}.md` | 0 |
 
-**总日历（2 人并行，环境按时）：约 3.5～5.5 周到 demo-ready。** 详见 gap-qa。
+**总日历（仅剩 P5 阻塞 + 行方确认）：约 12～18 人·日阻塞任务 G，其余 A/B/C/D/E/F 全部完成。** 详见 gap-qa。
 
 ---
 

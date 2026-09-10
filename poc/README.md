@@ -79,6 +79,53 @@ Skill 目录：`poc/skills/report-visualizer/`（含 `SKILL.md`）。
 
 工具：`pivot_table_tool`、`render_bar_tool`、`render_line_tool`、`render_pie_tool`、`render_scatter_tool`、`render_heatmap_tool`、`render_docx_report_tool`。
 
+---
+
+## Phase 3 — 运营助手（P3）
+
+### 挂载 Skill（ops-assistant）
+
+Skill 目录：`poc/skills/ops-assistant/`（含 `SKILL.md`）。挂载方式同 Phase 1/2。
+
+### 导入 MCP（ops-data）
+
+配置样例：[`poc/config/mcp-ops-data.json`](config/mcp-ops-data.json)。工具：`list_telemetry_files_tool`、`summarize_calls_tool`、`recent_events_tool`。
+
+### 注册 HOOK 埋点（4 类）
+
+通过两个 QwenPaw 插件一次性安装：
+
+```bash
+qwenpaw plugin install <REPO_ROOT>/poc/plugins/ops-telemetry
+qwenpaw plugin install <REPO_ROOT>/poc/plugins/health
+```
+
+- `poc-ops-telemetry` 把 6 个 HookBase 子类注册进每个 workspace，覆盖 8 个 Phase 中的 5 个（PRE_DISPATCH/POST_DISPATCH/PRE_AGENT_BUILD/POST_RESPONSE/PRE_EXECUTE/ON_ERROR），分别对应**调用量/耗时/会话/Token/工具成败** 4 类埋点。
+- 落盘位置：`POC_WORKSPACE/telemetry/<UTC-日期>/ops.jsonl`，每行一条 JSON。
+
+---
+
+## Phase 4 — 后端部署（P4）
+
+### 镜像
+
+`poc/deploy/Dockerfile.poc` multi-stage（`python:3.13-slim`），仅安装 `tini / ca-certificates / fonts-wqy-zenhei`；不含 XFCE/Chromium（演示环境无浏览器）。本机实测镜像 < 500MB（CI 实测见 commit 信息）。
+
+```bash
+docker build -f poc/deploy/Dockerfile.poc -t shunde-poc:dev .
+docker run --rm -p 8080:8080 shunde-poc:dev
+# curl http://localhost:8080/api/poc/health -> {"status":"ok"}
+```
+
+### `/health` 路由
+
+插件 `poc/plugins/health/` 通过 QwenPaw 官方 `api.register_http_router` 挂载 FastAPI `APIRouter`（红线 2：不动内核）：
+
+| 方法 | 路径 | 返回 |
+|------|------|------|
+| GET  | `/api/poc/health`         | `{"status": "ok"}` |
+| GET  | `/api/poc/health/version` | `{"status": "ok", "poc_version": "..."}` |
+
 ### 实测记录（2026-09）
 
 - 一键 demo（无需启动 Console）：`source .venv/bin/activate && python scripts/report_demo.py`，产出 `poc/fixtures/report_demo/out/report.docx`（13 段落 + 1 交叉表 + 5 嵌入图）。验证脚本内置对所有工具 `ok` 的断言，任一失败立即非零退出。

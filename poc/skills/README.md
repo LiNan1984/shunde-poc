@@ -4,6 +4,7 @@
 |-------|------|------|
 | `excel-qa-bank` | [`excel-qa-bank/SKILL.md`](excel-qa-bank/SKILL.md) | Excel/CSV 问答；先调 `excel-guard` MCP 再读查析写 |
 | `report-visualizer` | [`report-visualizer/SKILL.md`](report-visualizer/SKILL.md) | 报告可视化：交叉表 + 五类图 + docx 拼装；调 `report-visualizer` MCP |
+| `ops-assistant` | [`ops-assistant/SKILL.md`](ops-assistant/SKILL.md) | 运营问答：调用量/Token/工具成败/耗时四类埋点数据；调 `ops-data` MCP |
 
 ## 接入 QwenPaw
 

@@ -13,6 +13,7 @@ EXPECTED_FRONTMATTER = {"name", "description"}
 SKILLS = [
     ("excel-qa-bank", {"detect_corrupt_workbook", "chunk_large_workbook"}),
     ("report-visualizer", {"pivot_table_tool", "render_bar_tool", "render_docx_report_tool"}),
+    ("ops-assistant", {"summarize_calls_tool", "recent_events_tool", "list_telemetry_files_tool"}),
 ]
 
 
@@ -72,3 +73,13 @@ def test_report_skill_mentions_mcp_tools() -> None:
     _, body = _load("report-visualizer")
     for tool in ("pivot_table_tool", "render_bar_tool", "render_docx_report_tool"):
         assert tool in body, f"report-visualizer SKILL.md missing tool mention: {tool}"
+
+
+def test_ops_skill_mentions_mcp_tools() -> None:
+    _, body = _load("ops-assistant")
+    for tool in (
+        "summarize_calls_tool",
+        "recent_events_tool",
+        "list_telemetry_files_tool",
+    ):
+        assert tool in body, f"ops-assistant SKILL.md missing tool mention: {tool}"
