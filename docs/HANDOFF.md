@@ -83,9 +83,14 @@ git -C QwenPaw describe --tags --exact-match   # 期望输出：v2.0.0
 | 分阶段开发计划 | `docs/superpowers/plans/2026-03-22-poc-phase1-excel-plan.md` | P0～P6 |
 | Phase 1 Excel MCP | `poc/excel_guard_mcp/` | 三工具 + `POC_WORKSPACE` 路径沙箱 |
 | Phase 1 Excel Skill | `poc/skills/excel-qa-bank/SKILL.md` | 含触发词/参数/边界/MCP 协作 |
-| Phase 1 测试 | `pytest poc/tests` | **13 passed**（交接前已跑通） |
+| Phase 1 测试深化 | `poc/tests/test_excel_guards.py` + `test_mcp_server.py` | **73 个测试**（含沙箱/边界/集成），guards.py 覆盖率 93% |
+| Phase 2 报告可视化 MCP | `poc/report_mcp/` | 脚手架：五类图 + 交叉表 + docx（7 个 MCP 工具） |
+| Phase 2 报告可视化 Skill | `poc/skills/report-visualizer/SKILL.md` | 含触发词/参数/边界/MCP 协作流程 |
+| Phase 2 计划文档 | `docs/superpowers/plans/2026-03-22-poc-phase2-report-visualizer-plan.md` | P2 架构 / DoD / 风险 |
+| P4 部署预研 | `docs/superpowers/p4-deployment-research.md` | `/health` 缺失确认 + 镜像体积分析 |
 | MaaS 探针约定 | `.env.example` + 评估 §7 | Base URL / model 用环境变量；**勿提交 Bearer** |
 | 评估文档测试 | `tests/test_poc_*.py` | 结构校验 |
+| **全量测试** | `pytest poc/tests tests/ -v` | **101 passed** |
 
 ### Phase 1 MCP 工具一览
 
@@ -107,10 +112,10 @@ git -C QwenPaw describe --tags --exact-match   # 期望输出：v2.0.0
 |--------|------|------|-----------|
 | **立刻** | 将 Phase 1 MCP/Skill **挂到 QwenPaw Console** 并彩排三种异常文件 | 文档有步骤，未实机挂载验收 | 0.5～1 |
 | **立刻** | 确认行方模型：**Qwen3.6-35B/27B**（当前探针曾用 `qwen3.5-35b-a3b`，不合规口径） | 未对齐 | 0.5～1 |
-| P1 收尾 | 12 道 Excel 测题预跑答卷 + Agent 装配剧本 | 未做 | 2～3 |
-| P2 | 报告可视化 Skill（docx + 交叉表 + 五类图） | 未开始 | 4～6 |
+| P1 收尾 | 12 道 Excel 测题预跑答卷 + Agent 装配剧本 | 未做；测试已从 13 → 73 | 2～3 |
+| **P2** | 报告可视化 Skill（docx + 交叉表 + 五类图） | **脚手架完成**（7 MCP 工具 + Skill + 8 测试 + 101 全绿） | 4～6（剩余 2～3 人·日） |
 | P3 | 运营助手 + HOOK 四类埋点 | 未开始 | 5～7 |
-| P4 | Dockerfile 精简、`GET /health`、资源截图 | 未开始 | 3～5 |
+| P4 | Dockerfile 精简、`GET /health`、资源截图 | 已预研（确认无 `/health`，镜像偏大原因已定位）；未实现 | 3～5 |
 | P5 | 多模态知识库（ES/MySQL/GALASYBASE/MinerU…） | 未开始（最大块） | 12～18 |
 | P6 | HARNESS 三方案讲义与调参演示 | 未开始 | 2～3 |
 

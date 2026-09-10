@@ -55,3 +55,26 @@ source /Users/linan/Desktop/aicode/shunde/.venv/bin/activate
 cd /Users/linan/Desktop/aicode/shunde
 pytest poc/tests -v
 ```
+
+---
+
+## Phase 2 — 报告可视化助手（P2）
+
+### 挂载 Skill（report-visualizer）
+
+Skill 目录：`poc/skills/report-visualizer/`（含 `SKILL.md`）。
+
+挂载方式与 `excel-qa-bank` 完全一致：`skill_paths` 指向 `poc/skills/`，或在 Console 工作区从技能池下发。
+
+### 导入 MCP（report-visualizer）
+
+配置样例：[`poc/config/mcp-report-visualizer.json`](config/mcp-report-visualizer.json)。
+
+1. 打开 QwenPaw Console → **智能体 → MCP**
+2. 点击 **+ 创建**
+3. 粘贴 `mcp-report-visualizer.json` 全文（或其中 `mcpServers` 段）
+4. 将 JSON 中所有 `<REPO_ROOT>` 替换为本仓库绝对路径
+5. 建议 `env.POC_WORKSPACE=<REPO_ROOT>`，MCP 只允许写入该目录内文件
+6. 安装新依赖：`source .venv/bin/activate && pip install python-docx matplotlib`
+
+工具：`pivot_table_tool`、`render_bar_tool`、`render_line_tool`、`render_pie_tool`、`render_scatter_tool`、`render_heatmap_tool`、`render_docx_report_tool`。

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "report-visualizer": {
+      "command": "<REPO_ROOT>/.venv/bin/python",
+      "args": ["-m", "poc.report_mcp"],
+      "cwd": "<REPO_ROOT>",
+      "env": {
+        "POC_WORKSPACE": "<REPO_ROOT>"
+      }
+    }
+  }
+}
