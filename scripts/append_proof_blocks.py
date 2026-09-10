@@ -26,6 +26,7 @@ Strategy (this iteration):
 
 from __future__ import annotations
 
+import argparse
 import shutil
 import subprocess
 import sys
@@ -344,14 +345,134 @@ def proof_rows(code: str) -> list[list[str]]:
 
 
 # ---------------------------------------------------------------------------
+# Backend: python-docx (no officecli binary required)
+# ---------------------------------------------------------------------------
+#
+# The officecli backend needs the ``officecli`` binary on PATH, which we
+# cannot guarantee in CI. This backend reproduces the exact same output
+# using only the python-docx library.
+#
+# Insert mechanism is the community-standard lxml move: build the element
+# with python-docx (which appends it at the end of the body), then splice
+# it into place with ``anchor._p.addprevious(el)``. Because addprevious
+# always lands immediately before the anchor, calling it in natural order
+# (heading → intro → table) yields that same order in the document —
+# unlike officecli's ``--before``, where callers must insert in reverse.
+
+
+def _find_paragraph_by_para_id(doc, para_id: str):
+    """Return the paragraph whose w14:paraId matches ``para_id``.
+
+    python-docx has no paraId accessor, so read the attribute off the
+    underlying element. paraId values are hex and compared case-insensitively.
+    """
+    from docx.oxml.ns import qn  # noqa: PLC0415 — optional dependency
+
+    wanted = para_id.strip().upper()
+    for paragraph in doc.paragraphs:
+        current = paragraph._element.get(qn("w14:paraId"))
+        if current and current.upper() == wanted:
+            return paragraph
+    return None
+
+
+def _build_heading(doc, text: str):
+    """Build a Heading 3 paragraph (falls back to inline bold+color)."""
+    from docx.shared import Pt, RGBColor  # noqa: PLC0415
+
+    paragraph = doc.add_paragraph()
+    try:
+        paragraph.style = doc.styles[HEADING_STYLE_NAME]
+    except KeyError:
+        sys.stderr.write(
+            f"WARN: {HEADING_STYLE_NAME} missing; using inline formatting.\n"
+        )
+    run = paragraph.add_run(text)
+    # Match the officecli backend byte-for-byte on the visual props.
+    run.bold = True
+    run.font.size = Pt(14)
+    run.font.color.rgb = RGBColor.from_string("C00000")
+    return paragraph
+
+
+def _build_intro(doc, text: str):
+    from docx.shared import Pt  # noqa: PLC0415
+
+    paragraph = doc.add_paragraph()
+    run = paragraph.add_run(text)
+    run.bold = False
+    run.font.size = Pt(11)
+    return paragraph
+
+
+def _build_table(doc, rows: list[list[str]]):
+    """Build a 4-column proof table with a bolded header row."""
+    from docx.shared import Pt  # noqa: PLC0415
+
+    table = doc.add_table(rows=len(rows), cols=4)
+    try:
+        table.style = doc.styles["Table Grid"]
+    except KeyError:
+        sys.stderr.write("WARN: 'Table Grid' style missing; table unstyled.\n")
+    for r_idx, row in enumerate(rows):
+        for c_idx, cell_text in enumerate(row):
+            cell = table.cell(r_idx, c_idx)
+            cell.text = ""
+            run = cell.paragraphs[0].add_run(cell_text)
+            run.font.size = Pt(9)
+            if r_idx == 0:
+                run.bold = True
+    return table
+
+
+def run_python_docx_backend() -> int:
+    """Insert all 11 proof blocks using python-docx only."""
+    try:
+        from docx import Document  # noqa: PLC0415
+    except ImportError:
+        print("python-docx backend requires: pip install python-docx",
+              file=sys.stderr)
+        return 1
+
+    # Start from a clean copy of the source, exactly like force_reset():
+    # partial state from a prior run is the #1 source of bugs.
+    print(f"resetting {TARGET} from source...")
+    TARGET.parent.mkdir(parents=True, exist_ok=True)
+    TARGET.write_bytes(SOURCE.read_bytes())
+
+    doc = Document(str(TARGET))
+
+    print("inserting 11 proof blocks after their original evaluation tables...")
+    for tbl_idx, label, code, _ in BLOCKS:
+        print(f"  -> tbl[{tbl_idx}] 用例 {code} {label}")
+        para_id = ANCHORS[tbl_idx]
+        anchor = _find_paragraph_by_para_id(doc, para_id)
+        if anchor is None:
+            print(f"anchor paraId={para_id} not found for tbl[{tbl_idx}]",
+                  file=sys.stderr)
+            return 1
+
+        heading = _build_heading(
+            doc, f"【完成证明 · {label}（用例 {code}）】")
+        intro = _build_intro(doc, intro_text(label, code))
+        table = _build_table(doc, proof_rows(code))
+
+        # Splice into place, in natural document order.
+        anchor._p.addprevious(heading._p)
+        anchor._p.addprevious(intro._p)
+        anchor._p.addprevious(table._tbl)
+
+    doc.save(str(TARGET))
+    print("done.")
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
 
-def main() -> int:
-    if not SOURCE.exists():
-        print(f"missing source: {SOURCE}", file=sys.stderr)
-        return 1
+def run_officecli_backend() -> int:
     PROOF_DIR.mkdir(parents=True, exist_ok=True)
 
     print(f"resetting {TARGET} from source...")
@@ -407,6 +528,26 @@ def main() -> int:
 
     print("done.")
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Insert 完成证明 blocks after every evaluation table.")
+    parser.add_argument(
+        "--backend", choices=("officecli", "python-docx"), default="officecli",
+        help="insertion backend (default: officecli, the verified path; "
+             "python-docx needs no external binary and suits CI)",
+    )
+    args = parser.parse_args(argv)
+
+    if not SOURCE.exists():
+        print(f"missing source: {SOURCE}", file=sys.stderr)
+        return 1
+
+    print(f"backend: {args.backend}")
+    if args.backend == "python-docx":
+        return run_python_docx_backend()
+    return run_officecli_backend()
 
 
 if __name__ == "__main__":
