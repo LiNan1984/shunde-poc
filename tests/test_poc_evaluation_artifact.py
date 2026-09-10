@@ -102,7 +102,8 @@ def test_evaluation_maas_wiring_forbids_committed_secrets() -> None:
     for marker in MAAS_MARKERS:
         assert marker in text, f"MaaS wiring missing marker: {marker}"
     # Must not embed live Bearer tokens in the tracked eval.
-    assert re.search(r"Authorization:\s*Bearer\s+\S+", text) is None
+    # Allow env-var placeholders like ${QWENPAW_MAAS_API_KEY}.
+    assert re.search(r"Authorization:\s*Bearer\s+(?!\$\{)(\S+)", text) is None
     assert re.search(r"Bearer\s+sk-", text) is None
     assert re.search(r"sk-[A-Za-z0-9._\-]{20,}", text) is None
 
