@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "excel-guard": {
+      "command": "<REPO_ROOT>/.venv/bin/python",
+      "args": ["-m", "poc.excel_guard_mcp"],
+      "cwd": "<REPO_ROOT>",
+      "env": {
+        "POC_WORKSPACE": "<REPO_ROOT>"
+      }
+    }
+  }
+}
