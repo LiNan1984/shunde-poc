@@ -36,6 +36,10 @@ SOURCE = REPO_ROOT / "人工智能场景拓展与迭代开发技术服务项目-
 TARGET = REPO_ROOT / "docs" / "演示材料" / "POC完成证明与演示手册.docx"
 PROOF_DIR = REPO_ROOT / ".cache" / "proof"
 
+# Heading blocks use a real Word heading style so they show up in the
+# navigation pane / outline view rather than merely looking bold.
+HEADING_STYLE_NAME = "Heading 3"
+
 
 # Anchor strategy.
 #
@@ -83,11 +87,16 @@ BLOCKS = [
 ]
 
 
-def officecli(*args: str) -> subprocess.CompletedProcess:
-    """Run officecli with stderr captured on failure."""
+def officecli(*args: str, check: bool = True) -> subprocess.CompletedProcess:
+    """Run officecli with stderr captured on failure.
+
+    With ``check=True`` (default) a non-zero exit aborts the run. With
+    ``check=False`` the completed process is returned so the caller can
+    decide on a fallback.
+    """
     cmd = ["officecli", *args]
     proc = subprocess.run(cmd, capture_output=True, text=True)
-    if proc.returncode != 0:
+    if proc.returncode != 0 and check:
         sys.stderr.write(
             f"FAILED ({proc.returncode}): {' '.join(cmd)}\n"
             f"stdout: {proc.stdout}\n"
@@ -95,6 +104,33 @@ def officecli(*args: str) -> subprocess.CompletedProcess:
         )
         raise SystemExit(proc.returncode)
     return proc
+
+
+def resolve_heading3_style_id() -> str | None:
+    """Return the styleId of the 'Heading 3' paragraph style in SOURCE.
+
+    officecli's ``--prop style=`` resolves against the **styleId**, not
+    the human-readable style name: passing ``style=Heading 3`` emits
+    "style not found in styles part" and silently leaves the paragraph
+    as Normal, while ``style=4`` yields a real Heading 3 carrying
+    ``w:outlineLvl=2`` (so Word's navigation pane / outline view lists
+    it). The numeric id is document-specific, so read it back rather
+    than hard-coding it.
+
+    Returns None when the style is absent or python-docx is unavailable,
+    in which case callers fall back to inline bold+color formatting.
+    """
+    try:
+        from docx import Document  # noqa: PLC0415 — optional dependency
+    except ImportError:
+        return None
+    try:
+        for style in Document(str(SOURCE)).styles:
+            if style.name == HEADING_STYLE_NAME:
+                return style.style_id
+    except Exception:  # pragma: no cover — corrupt/unreadable source
+        return None
+    return None
 
 
 def force_reset() -> None:
@@ -117,10 +153,16 @@ def force_reset() -> None:
 
 def add_paragraph_before(anchor: str, text: str, *,
                           bold: bool = False, size: str = "11pt",
-                          color: str | None = None) -> None:
+                          color: str | None = None,
+                          style: str | None = None) -> None:
     """Insert a paragraph BEFORE ``anchor`` (anchor is /body/p[@paraId=X]
     so the new paragraph lands immediately AFTER the table that comes
-    before this paragraph)."""
+    before this paragraph).
+
+    ``style`` is an officecli styleId (see resolve_heading3_style_id).
+    When a styled insert fails, the call is retried without the style so
+    the block still lands with inline bold/size/color formatting.
+    """
     props = [
         f"text={text}",
         f"bold={'true' if bold else 'false'}",
@@ -128,13 +170,28 @@ def add_paragraph_before(anchor: str, text: str, *,
     ]
     if color:
         props.append(f"color={color}")
-    officecli(
-        "add", str(TARGET), "/body",
-        "--type", "paragraph",
-        "--before", anchor,
-        "--prop", props[0], "--prop", props[1], "--prop", props[2],
-        *(["--prop", props[3]] if len(props) > 3 else []),
-    )
+
+    def _run(extra: list[str], *, check: bool) -> subprocess.CompletedProcess:
+        flags: list[str] = []
+        for prop in [*props, *extra]:
+            flags += ["--prop", prop]
+        return officecli(
+            "add", str(TARGET), "/body",
+            "--type", "paragraph",
+            "--before", anchor,
+            *flags,
+            check=check,
+        )
+
+    if style:
+        proc = _run([f"style={style}"], check=False)
+        if proc.returncode == 0:
+            return
+        sys.stderr.write(
+            f"WARN: styled insert failed (style={style}); "
+            f"falling back to inline formatting.\n"
+        )
+    _run([], check=True)
 
 
 def add_table_before(anchor: str, rows: list[list[str]]) -> None:
@@ -313,6 +370,13 @@ def main() -> int:
     print("opening resident for stable anchor resolution...")
     officecli("open", str(TARGET))
 
+    heading_style = resolve_heading3_style_id()
+    if heading_style:
+        print(f"heading style: {HEADING_STYLE_NAME} -> styleId {heading_style}")
+    else:
+        print(f"WARN: {HEADING_STYLE_NAME} not found; "
+              f"headings fall back to inline bold+color")
+
     try:
         print("inserting 11 proof blocks after their original evaluation tables...")
         for tbl_idx, label, code, _ in BLOCKS:
@@ -333,6 +397,7 @@ def main() -> int:
                 anchor,
                 f"【完成证明 · {label}（用例 {code}）】",
                 bold=True, size="14pt", color="C00000",
+                style=heading_style,
             )                                              # 1st: pushed farthest
             add_paragraph_before(anchor, intro_text(label, code))   # 2nd: middle
             add_table_before(anchor, proof_rows(code))    # 3rd: closest to anchor
