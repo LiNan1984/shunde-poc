@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>顺德 POC 四助手</title>
+  <style>
+    :root { color-scheme: light; }
+    body { font-family: "PingFang SC", "Noto Sans SC", sans-serif; margin: 0; background: #f8fafc; color: #0f172a; }
+    header { background: #0f172a; color: #fff; padding: 28px 24px; }
+    header p { color: #94a3b8; margin: 8px 0 0; }
+    main { max-width: 980px; margin: 0 auto; padding: 24px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    article { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 18px; }
+    article h2 { margin: 0 0 8px; font-size: 18px; }
+    article p { margin: 6px 0; color: #475569; font-size: 14px; }
+    .ask { background: #f1f5f9; border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+    form { margin-top: 24px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; }
+    input, button { font: inherit; padding: 10px 12px; }
+    input { width: 70%; border: 1px solid #cbd5e1; border-radius: 8px; }
+    button { background: #2563eb; color: #fff; border: 0; border-radius: 8px; cursor: pointer; }
+    pre { white-space: pre-wrap; background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 8px; min-height: 80px; }
+    a { color: #2563eb; }
+    @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } input { width: 100%; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>顺德农商行 POC · 四助手</h1>
+    <p>公网演示页 · 完整对话 UI 在本机 QwenPaw Console :5173 · 仓库 github.com/LiNan1984/shunde-poc</p>
+  </header>
+  <main>
+    <div class="grid" id="cards"></div>
+    <form id="f">
+      <h2>试一下知识库检索（夹具：信贷政策）</h2>
+      <p>例如：逾期90天认定标准 · 信贷政策 · 表格里的经营贷款利率</p>
+      <input id="q" value="逾期90天认定标准" />
+      <button type="submit">提问</button>
+      <pre id="out">等待提问…</pre>
+    </form>
+    <p><a href="/architecture.png">完成情况架构图</a> · <a href="/health">/health</a> · <a href="https://github.com/LiNan1984/shunde-poc">GitHub</a></p>
+  </main>
+  <script>
+    const assistants = [
+      ["Excel问答助手", "损坏表 / GBK CSV / 超大表分块"],
+      ["多模态文件助手", "PDF 入库检索：再平衡思路、承前启后、AI 金融风险"],
+      ["运营助手", "调用量 / Token / 失败工具 / 耗时 JSONL"],
+      ["报告可视化助手", "交叉表 + 柱折饼散点热力 + docx"]
+    ];
+    document.getElementById("cards").innerHTML = assistants.map(([n, d]) =>
+      `<article><h2>${n}</h2><p class="ask">${d}</p></article>`
+    ).join("");
+    document.getElementById("f").onsubmit = async (e) => {
+      e.preventDefault();
+      const q = document.getElementById("q").value;
+      document.getElementById("out").textContent = "检索中…";
+      const r = await fetch("/api/kb/answer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: q, doc_id: "credit-policy" })
+      });
+      const j = await r.json();
+      document.getElementById("out").textContent = j.answer || j.message || JSON.stringify(j, null, 2);
+    };
+  </script>
+</body>
+</html>

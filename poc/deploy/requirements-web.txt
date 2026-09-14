@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+pypdf>=5.0
+pypdfium2
+pdfplumber
+reportlab
+pytesseract
+Pillow
