@@ -1,0 +1,4 @@
+[submodule "QwenPaw"]
+	path = QwenPaw
+	url = https://github.com/agentscope-ai/QwenPaw.git
+	branch = main

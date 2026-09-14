@@ -29,6 +29,6 @@ kb_store/
 .cache/
 **/*.pyc
 
-# Upstream clone managed separately via gh (keep local; do not vendor)
-QwenPaw/
+# MinerU is large (models + venv); keep local only.
+# Official QwenPaw is a git submodule (see .gitmodules) — do not vendor a fork.
 MinerU/
