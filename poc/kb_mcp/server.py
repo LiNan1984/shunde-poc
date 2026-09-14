@@ -7,9 +7,11 @@ from mcp.server.fastmcp import FastMCP
 
 from .embed import load_embedding_secrets
 from .ingest import ingest_pdf as _ingest_pdf
+from .ingest import ingest_spreadsheet as _ingest_spreadsheet
 from .parse import parse_pdf as _parse_pdf
 from .retrieve import answer_knowledge as _answer_knowledge
 from .retrieve import search_knowledge as _search_knowledge
+from .vision import analyze_page as _analyze_page
 
 mcp = FastMCP("kb-qa")
 
@@ -24,6 +26,12 @@ def parse_document(path: str, doc_id: str = "", max_pages: int = 0) -> dict:
 def ingest_document(path: str, doc_id: str = "", max_pages: int = 0) -> dict:
     """Parse a workspace PDF and write page images, metadata, vectors, and graph relations."""
     return _ingest_pdf(path, doc_id=doc_id, max_pages=max_pages)
+
+
+@mcp.tool()
+def ingest_spreadsheet(path: str, doc_id: str = "", sample_rows: int = 5) -> dict:
+    """Index spreadsheet metadata only (filename, sheet names, headers, sample rows) for file routing."""
+    return _ingest_spreadsheet(path, doc_id=doc_id, sample_rows=sample_rows)
 
 
 @mcp.tool()
@@ -66,6 +74,19 @@ def answer_knowledge(
         page_to=page_to,
         k=k,
     )
+
+
+@mcp.tool()
+def analyze_page(doc_id: str = "", path: str = "", page: int = 0, query: str = "") -> dict:
+    """看图作答：把已入库文档的页面 PNG 喂给视觉模型，按图片内容回答精确数字/图表追问。
+
+    用 doc_id + page 定位已入库页图，或直接给工作区内 PNG 路径。
+    Answer from a stored page image via the vision model — use after
+    search/answer hits kind=table/image chunks, to read exact numbers off the
+    page. Never fabricates: unconfigured or failing vision endpoint returns
+    ok=False with error_type (config/network/missing/empty_input/path_denied).
+    """
+    return _analyze_page(doc_id=doc_id, path=path, page=page, query=query)
 
 
 def main() -> None:

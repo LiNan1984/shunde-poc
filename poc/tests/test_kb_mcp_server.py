@@ -13,14 +13,18 @@ from typing import Any
 
 import pytest
 
+from openpyxl import Workbook
+
 from poc.kb_mcp.fixtures import TOKENS, write_native_text_pdf
 from poc.kb_mcp.server import main, mcp
 
 EXPECTED_TOOLS = {
     "parse_document",
     "ingest_document",
+    "ingest_spreadsheet",
     "search_knowledge",
     "answer_knowledge",
+    "analyze_page",
 }
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -57,10 +61,10 @@ def _call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
-def test_server_registers_exactly_four_tools() -> None:
+def test_server_registers_exactly_six_tools() -> None:
     tools = _list_tools()
     assert set(tools) == EXPECTED_TOOLS
-    assert len(tools) == 4
+    assert len(tools) == 6
 
 
 def test_server_name_is_kb_qa() -> None:
@@ -136,6 +140,58 @@ def test_importing_server_module_does_not_start_stdio() -> None:
     )
     assert completed.returncode == 0, completed.stderr
     assert "imported-ok" in completed.stdout
+
+
+def test_mcp_ingest_spreadsheet_then_search_identifies_file_not_distractor(
+    tmp_path: Path,
+) -> None:
+    shunde = tmp_path / "shunde_ledger.xlsx"
+    other = tmp_path / "jiaozhou_ledger.xlsx"
+    wb_a = Workbook()
+    ws_a = wb_a.active
+    ws_a.title = "顺德收支台账"
+    ws_a.append(["交易日期", "金额", "顺德网点ShundeMetaTokenX9"])
+    ws_a.append(["20260601", 100, "顺德容桂支行"])
+    for i in range(18):
+        ws_a.append([f"202606{i+2:02d}", i, "padding"])
+    ws_a.append(["20260620", 999, "DEEP_CELL_TOKEN_NEVER_INDEX_7f3a"])
+    wb_a.save(shunde)
+    wb_b = Workbook()
+    ws_b = wb_b.active
+    ws_b.title = "胶州收支台账"
+    ws_b.append(["交易日期", "金额", "胶州网点JiaozhouMetaTokenY2"])
+    ws_b.append(["20260601", 50, "胶州铺集支行"])
+    wb_b.save(other)
+
+    ingested_a = _call_tool(
+        "ingest_spreadsheet",
+        {"path": str(shunde), "doc_id": "shunde-ledger", "sample_rows": 5},
+    )
+    ingested_b = _call_tool(
+        "ingest_spreadsheet",
+        {"path": str(other), "doc_id": "jiaozhou-ledger", "sample_rows": 5},
+    )
+    assert ingested_a["ok"] is True
+    assert ingested_b["ok"] is True
+
+    hits = _call_tool(
+        "search_knowledge",
+        {"query": "ShundeMetaTokenX9", "k": 8},
+    )
+    assert hits["ok"] is True
+    assert hits["hits"]
+    top = hits["hits"][0]
+    blob = " ".join(
+        [
+            str(top.get("doc_id") or ""),
+            str(top.get("text") or ""),
+            str(top.get("chapter") or ""),
+        ]
+    )
+    assert "shunde-ledger" in blob or "顺德" in blob
+    assert "jiaozhou-ledger" not in (top.get("doc_id") or "")
+    indexed = " ".join(h.get("text") or "" for h in hits["hits"])
+    assert "DEEP_CELL_TOKEN_NEVER_INDEX_7f3a" not in indexed
 
 
 def test_stdio_entrypoint_exits_on_stdin_eof() -> None:

@@ -3,7 +3,7 @@
 
 Asserts four MCP modules (excel-guard / report-visualizer / ops-data / kb-qa)
 are in the smoke contract and that running the script exits 0 with four ok
-entries totaling 17 tools (3+7+3+4). kb-qa must also run initialize twice
+entries totaling 21 tools (5+7+3+6). kb-qa must also run initialize twice
 and return real fixture hit text.
 """
 
@@ -39,11 +39,11 @@ def test_smoke_script_exists_and_expects_four_mcps() -> None:
         "poc.ops_mcp",
         "poc.kb_mcp",
     }
-    assert expected["poc.excel_guard_mcp"] == 3
+    assert expected["poc.excel_guard_mcp"] == 5
     assert expected["poc.report_mcp"] == 7
     assert expected["poc.ops_mcp"] == 3
-    assert expected["poc.kb_mcp"] == 4
-    assert sum(expected.values()) == 17
+    assert expected["poc.kb_mcp"] == 6
+    assert sum(expected.values()) == 21
 
 
 def test_smoke_script_run_covers_four_servers() -> None:
@@ -74,7 +74,7 @@ def test_smoke_script_run_covers_four_servers() -> None:
         assert row["stdio_server_name"], row
         assert row["inproc_tool_count"] == row["expected"], row
     total = sum(row["inproc_tool_count"] for row in summary)
-    assert total == 17
+    assert total == 21
     kb = by_module["poc.kb_mcp"]
     assert kb["initialize_1"] is True
     assert kb["initialize_2"] is True

@@ -22,6 +22,7 @@ from poc.excel_guard_mcp.guards import (
 )
 
 from .chunk import chunk_id, chunks_from_page
+from .errors import with_error_type
 from .mineru import mineru_cli_path, mineru_endpoint, parse_with_mineru
 
 logger = logging.getLogger("poc.kb")
@@ -221,13 +222,15 @@ def _contained_pdf_bytes(resolved: Path) -> tuple[bytes | None, dict | None]:
     try:
         return fh.read(), None
     except OSError as exc:
-        return None, {
-            "ok": False,
-            "message": f"无法读取文件 / cannot read file: {exc}",
-            "backend": "",
-            "pages": [],
-            "chunks": [],
-        }
+        return None, with_error_type(
+            {
+                "ok": False,
+                "message": f"无法读取文件 / cannot read file: {exc}",
+                "backend": "",
+                "pages": [],
+                "chunks": [],
+            }
+        )
     finally:
         fh.close()
 
@@ -240,33 +243,37 @@ def _finalize_mineru_result(
         result["doc_id"] = used_id
         result.setdefault("chunks", [])
         result.setdefault("pages", [])
-        return result
+        return with_error_type(result)
     result["doc_id"] = used_id
     pages = result.get("pages") or []
     if max_pages > 0 and isinstance(pages, list):
         result["pages"] = pages[:max_pages]
     raw_chunks = result.get("chunks") or []
     if not isinstance(raw_chunks, list):
-        return {
-            "ok": False,
-            "backend": "mineru",
-            "doc_id": used_id,
-            "pages": [],
-            "chunks": [],
-            "message": "MinerU 切块格式无效 / MinerU chunks are not a list",
-        }
-    if not raw_chunks:
-        try:
-            result["chunks"] = _chunks_from_mineru_pages(result.get("pages") or [], used_id)
-        except (TypeError, ValueError, AttributeError) as exc:
-            return {
+        return with_error_type(
+            {
                 "ok": False,
                 "backend": "mineru",
                 "doc_id": used_id,
                 "pages": [],
                 "chunks": [],
-                "message": f"MinerU 页映射失败 / MinerU page map failed: {exc}",
+                "message": "MinerU 切块格式无效 / MinerU chunks are not a list",
             }
+        )
+    if not raw_chunks:
+        try:
+            result["chunks"] = _chunks_from_mineru_pages(result.get("pages") or [], used_id)
+        except (TypeError, ValueError, AttributeError) as exc:
+            return with_error_type(
+                {
+                    "ok": False,
+                    "backend": "mineru",
+                    "doc_id": used_id,
+                    "pages": [],
+                    "chunks": [],
+                    "message": f"MinerU 页映射失败 / MinerU page map failed: {exc}",
+                }
+            )
     else:
         cleaned: list[dict[str, Any]] = []
         for i, chunk in enumerate(raw_chunks):
@@ -317,57 +324,69 @@ def parse_pdf(
     """
     resolved, err = _resolve_allowed_path(path)
     if err is not None or resolved is None:
-        return {
-            **(err or {"ok": False, "message": "path denied"}),
-            "backend": "",
-            "pages": [],
-            "chunks": [],
-        }
+        return with_error_type(
+            {
+                **(err or {"ok": False, "message": "path denied"}),
+                "backend": "",
+                "pages": [],
+                "chunks": [],
+            }
+        )
     if not resolved.is_file():
-        return {
-            "ok": False,
-            "issue": "missing",
-            "message": f"文件不存在 / file not found: {path}",
-            "backend": "",
-            "pages": [],
-            "chunks": [],
-        }
+        return with_error_type(
+            {
+                "ok": False,
+                "issue": "missing",
+                "message": f"文件不存在 / file not found: {path}",
+                "backend": "",
+                "pages": [],
+                "chunks": [],
+            }
+        )
     try:
         size = resolved.stat().st_size
     except OSError as exc:
-        return {
-            "ok": False,
-            "message": f"无法读取文件 / cannot stat file: {exc}",
-            "backend": "",
-            "pages": [],
-            "chunks": [],
-        }
+        return with_error_type(
+            {
+                "ok": False,
+                "message": f"无法读取文件 / cannot stat file: {exc}",
+                "backend": "",
+                "pages": [],
+                "chunks": [],
+            }
+        )
     if size > _MAX_FILE_BYTES:
-        return {
-            "ok": False,
-            "message": f"文件过大 / file too large: {size} bytes",
-            "backend": "",
-            "pages": [],
-            "chunks": [],
-        }
+        return with_error_type(
+            {
+                "ok": False,
+                "message": f"文件过大 / file too large: {size} bytes",
+                "backend": "",
+                "pages": [],
+                "chunks": [],
+            }
+        )
 
     used_id = _safe_doc_id(doc_id or resolved.stem)
     pdf_bytes, read_err = _contained_pdf_bytes(resolved)
     if read_err is not None or pdf_bytes is None:
-        return {
-            **(read_err or {"ok": False, "message": "cannot read pdf"}),
-            "backend": "",
-            "pages": [],
-            "chunks": [],
-        }
+        return with_error_type(
+            {
+                **(read_err or {"ok": False, "message": "cannot read pdf"}),
+                "backend": "",
+                "pages": [],
+                "chunks": [],
+            }
+        )
     if len(pdf_bytes) > _MAX_FILE_BYTES:
-        return {
-            "ok": False,
-            "message": f"文件过大 / file too large: {len(pdf_bytes)} bytes",
-            "backend": "",
-            "pages": [],
-            "chunks": [],
-        }
+        return with_error_type(
+            {
+                "ok": False,
+                "message": f"文件过大 / file too large: {len(pdf_bytes)} bytes",
+                "backend": "",
+                "pages": [],
+                "chunks": [],
+            }
+        )
     endpoint = mineru_endpoint()
     if endpoint or mineru_cli_path():
         result = parse_with_mineru(
@@ -378,57 +397,67 @@ def parse_pdf(
     dest = Path(output_dir) if output_dir else _default_output_dir(used_id)
     root, root_err = _workspace_root()
     if dest is None or root is None or root_err is not None:
-        return {
-            "ok": False,
-            "message": (root_err or {}).get("message")
-            or "沙箱不可用 / workspace unavailable",
-            "backend": "local",
-            "pages": [],
-            "chunks": [],
-        }
+        return with_error_type(
+            {
+                "ok": False,
+                "message": (root_err or {}).get("message")
+                or "沙箱不可用 / workspace unavailable",
+                "backend": "local",
+                "pages": [],
+                "chunks": [],
+            }
+        )
     try:
         dest = dest.expanduser().resolve(strict=False)
     except (OSError, ValueError) as exc:
-        return {
-            "ok": False,
-            "message": f"输出目录无法解析 / cannot resolve output_dir: {exc}",
-            "backend": "local",
-            "pages": [],
-            "chunks": [],
-        }
+        return with_error_type(
+            {
+                "ok": False,
+                "message": f"输出目录无法解析 / cannot resolve output_dir: {exc}",
+                "backend": "local",
+                "pages": [],
+                "chunks": [],
+            }
+        )
     if not dest.is_relative_to(root):
-        return {
-            "ok": False,
-            "issue": "path_denied",
-            "message": f"路径越界 / Path outside workspace root ({root}): {dest}",
-            "backend": "local",
-            "pages": [],
-            "chunks": [],
-        }
+        return with_error_type(
+            {
+                "ok": False,
+                "issue": "path_denied",
+                "message": f"路径越界 / Path outside workspace root ({root}): {dest}",
+                "backend": "local",
+                "pages": [],
+                "chunks": [],
+            }
+        )
     dest.mkdir(parents=True, exist_ok=True)
 
     try:
         reader = PdfReader(io.BytesIO(pdf_bytes))
         n_pages = len(reader.pages)
     except Exception as exc:  # noqa: BLE001
-        return {
-            "ok": False,
-            "message": f"PDF 无法打开 / cannot open PDF: {exc}",
-            "backend": "local",
-            "pages": [],
-            "chunks": [],
-        }
+        return with_error_type(
+            {
+                "ok": False,
+                "message": f"PDF 无法打开 / cannot open PDF: {exc}",
+                "backend": "local",
+                "pages": [],
+                "chunks": [],
+            }
+        )
 
     try:
         import pypdfium2 as pdfium
     except ImportError as exc:
-        return {
-            "ok": False,
-            "message": f"缺少 pypdfium2 / pypdfium2 missing: {exc}",
-            "backend": "local",
-            "pages": [],
-            "chunks": [],
-        }
+        return with_error_type(
+            {
+                "ok": False,
+                "message": f"缺少 pypdfium2 / pypdfium2 missing: {exc}",
+                "backend": "local",
+                "pages": [],
+                "chunks": [],
+            }
+        )
 
     plumber_pages: list[Any] = []
     plumber_doc = None
@@ -445,13 +474,15 @@ def parse_pdf(
     except Exception as exc:  # noqa: BLE001
         if plumber_doc is not None:
             plumber_doc.close()
-        return {
-            "ok": False,
-            "message": f"PDF 渲染失败 / cannot render PDF: {exc}",
-            "backend": "local",
-            "pages": [],
-            "chunks": [],
-        }
+        return with_error_type(
+            {
+                "ok": False,
+                "message": f"PDF 渲染失败 / cannot render PDF: {exc}",
+                "backend": "local",
+                "pages": [],
+                "chunks": [],
+            }
+        )
 
     limit = n_pages if max_pages <= 0 else min(n_pages, max_pages)
     pages: list[dict[str, Any]] = []

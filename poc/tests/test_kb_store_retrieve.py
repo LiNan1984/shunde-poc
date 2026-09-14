@@ -59,7 +59,8 @@ def test_ingest_writes_object_relational_vector_graph(tmp_path: Path) -> None:
     assert result["n_chunks"] >= 1
     assert result["stores"]["vector"] in {"local", "elasticsearch"}
     assert result["stores"]["relational"] in {"local", "mysql"}
-    assert result["stores"]["graph"] in {"local", "galasybase"}
+    assert result["stores"]["graph"] == "local"
+    assert result["stores"]["graph_live"] is False
     assert result["stores"]["object"]
     assert result["stores"]["graph_adapter"] == "galasybase"
     root = tmp_path / "kb_store"
@@ -227,3 +228,6 @@ def test_galaxybase_adapter_fallback_still_filters(tmp_path: Path) -> None:
     assert isinstance(bundle.graph, GalaxybaseGraphStore)
     assert bundle.names["graph_adapter"] == "galasybase"
     assert bundle.names["graph"] == "local"
+    assert bundle.names["graph_live"] is False
+    assert bundle.graph.live is False
+    assert bundle.graph.ping() is False

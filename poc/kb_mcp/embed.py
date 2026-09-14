@@ -11,6 +11,7 @@ import os
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger("poc.kb")
 
@@ -80,20 +81,14 @@ def _secrets_enabled() -> bool:
     return os.environ.get("POC_LOAD_SECRETS", "1").strip().lower() not in {"0", "false", "no"}
 
 
-def load_embedding_secrets() -> None:
-    """Fill missing env vars from ``$QWENPAW_SECRET_DIR/embedding.env``. Never override."""
-    if not _secrets_enabled():
-        return
-    raw_dir = os.environ.get("QWENPAW_SECRET_DIR") or str(
-        Path.home() / ".qwenpaw.secret"
-    )
-    path = Path(raw_dir).expanduser() / "embedding.env"
-    if not path.is_file():
-        return
+_SECRET_ENV_FILES = ("embedding.env", "middleware.env")
+
+
+def _load_env_file(path: Path) -> None:
     try:
         text = path.read_text(encoding="utf-8")
     except OSError as exc:
-        logger.warning("cannot read embedding secret file: %s", exc)
+        logger.warning("cannot read secret file %s: %s", path, exc)
         return
     for line in text.splitlines():
         line = line.strip()
@@ -104,6 +99,20 @@ def load_embedding_secrets() -> None:
         value = value.strip().strip('"').strip("'")
         if key and key not in os.environ:
             os.environ[key] = value
+
+
+def load_embedding_secrets() -> None:
+    """Fill missing env vars from ``$QWENPAW_SECRET_DIR/*.env``. Never override."""
+    if not _secrets_enabled():
+        return
+    raw_dir = os.environ.get("QWENPAW_SECRET_DIR") or str(
+        Path.home() / ".qwenpaw.secret"
+    )
+    root = Path(raw_dir).expanduser()
+    for name in _SECRET_ENV_FILES:
+        path = root / name
+        if path.is_file():
+            _load_env_file(path)
 
 
 def embedding_endpoint() -> str:
@@ -153,6 +162,50 @@ def reranker_endpoint() -> str:
         or os.environ.get("QWEN3_RERANKER_URL")
         or ""
     ).strip()
+
+
+def reranker_model() -> str:
+    load_embedding_secrets()
+    return (os.environ.get("POC_RERANKER_MODEL") or "qwen3.7-text-rerank").strip()
+
+
+def image_embedding_endpoint() -> str:
+    """Multimodal-embedding route (image+text in one vector space), e.g. qwen3-vl-embedding."""
+    load_embedding_secrets()
+    return os.environ.get("POC_IMAGE_EMBEDDING_URL", "").strip()
+
+
+def image_embedding_model() -> str:
+    load_embedding_secrets()
+    return (os.environ.get("POC_IMAGE_EMBEDDING_MODEL") or "qwen3-vl-embedding").strip()
+
+
+def image_embedding_api_key() -> str:
+    load_embedding_secrets()
+    return (
+        os.environ.get("POC_IMAGE_EMBEDDING_API_KEY")
+        or os.environ.get("POC_ALIYUN_API_KEY")
+        or embedding_api_key()
+    ).strip()
+
+
+def image_embedding_backend_name() -> str:
+    return image_embedding_model() if image_embedding_endpoint() else "text_caption"
+
+
+def provider_api_key() -> str:
+    """Key for chat/vision/rerank endpoints; aliyun key first, then embedding key."""
+    load_embedding_secrets()
+    return (
+        os.environ.get("POC_ALIYUN_API_KEY")
+        or os.environ.get("POC_CHAT_API_KEY")
+        or embedding_api_key()
+    ).strip()
+
+
+def vision_model() -> str:
+    load_embedding_secrets()
+    return (os.environ.get("POC_VISION_MODEL") or "").strip()
 
 
 def chat_endpoint() -> str:
@@ -244,48 +297,152 @@ def _http_embed(url: str, texts: list[str]) -> list[list[float]]:
     return out
 
 
-def synthesize_answer(query: str, snippets: list[str]) -> str:
-    """Optional LLM rewrite. Empty string means caller should use extractive fallback."""
+def chat_completion(
+    messages: list[dict[str, Any]],
+    *,
+    model: str = "",
+    temperature: float = 0.2,
+    max_tokens: int = 600,
+    timeout: float = 90.0,
+) -> str:
+    """OpenAI-compatible chat completion via ``chat_endpoint()``.
+
+    Empty string means unconfigured or failed — callers use their fallback
+    (never fabricate an answer). Vision calls pass ``model=vision_model()``
+    with multimodal content parts; the text path is unchanged.
+    """
     url = chat_endpoint()
-    model = chat_model()
-    if not url or not model:
+    use_model = (model or chat_model()).strip()
+    if not url or not use_model:
         return ""
-    if not embedding_api_key():
+    key = provider_api_key()
+    if not key:
         return ""
-    context = "\n".join(snippets[:8])[:8000]
     payload = {
-        "model": model,
-        "temperature": 0.2,
-        "max_tokens": 600,
-        "messages": [
-            {
-                "role": "system",
-                "content": (
-                    "你是银行 POC 知识库助手。只根据给定检索片段作答，"
-                    "必须写出页码（及章节，若片段里有）。不要编造片段中没有的数字或结论。"
-                ),
-            },
-            {
-                "role": "user",
-                "content": f"问题：{query}\n\n检索片段：\n{context}\n\n请作答。",
-            },
-        ],
+        "model": use_model,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "messages": messages,
     }
     req = urllib.request.Request(
-        url, data=json.dumps(payload).encode(), method="POST", headers=_headers()
+        url, data=json.dumps(payload).encode(), method="POST",
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             body = json.loads(resp.read().decode("utf-8"))
         choices = body.get("choices") if isinstance(body, dict) else None
         if not choices:
             return ""
         message = choices[0].get("message") or {}
-        content = (message.get("content") or "").strip()
-        if content:
-            return content
-        return (message.get("reasoning_content") or "").strip()
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError,
-            UnicodeDecodeError, TypeError, ValueError, AttributeError, urllib.error.HTTPError) as exc:
-        logger.warning("chat synthesis failed: %s", exc)
+        return (message.get("content") or message.get("reasoning_content") or "").strip()
+    except (
+        urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError,
+        UnicodeDecodeError, TypeError, ValueError, AttributeError, urllib.error.HTTPError,
+    ) as exc:
+        logger.warning("chat completion failed: %s", exc)
         return ""
+
+
+def rerank_scores(query: str, docs: list[str]) -> list[float]:
+    """Cross-encoder relevance scores aligned with ``docs`` via the native rerank route.
+
+    Raises when configured but failing — the caller decides whether to keep the
+    pre-rerank order (and must say so in its message). Empty docs → [].
+    """
+    url = reranker_endpoint()
+    if not url or not docs:
+        return []
+    key = provider_api_key()
+    if not key:
+        raise RuntimeError(
+            "已配置 Reranker URL 但缺少 API Key / reranker URL set but POC_ALIYUN_API_KEY is empty"
+        )
+    payload = {
+        "model": reranker_model(),
+        "input": {"query": query, "documents": [(d or " ")[:4000] for d in docs]},
+    }
+    req = urllib.request.Request(
+        url, data=json.dumps(payload).encode(), method="POST",
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError) as exc:
+        detail = ""
+        if isinstance(exc, urllib.error.HTTPError):
+            detail = exc.read().decode("utf-8", errors="replace")[:300]
+        raise RuntimeError(f"Reranker 端点失败 / rerank HTTP error: {exc} {detail}") from exc
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise RuntimeError(f"Reranker 返回无法解析 / rerank response malformed: {exc}") from exc
+    results = (body.get("output") or {}).get("results") if isinstance(body, dict) else None
+    if not isinstance(results, list):
+        raise RuntimeError("Reranker 返回缺少 output.results / rerank response missing results")
+    scores: list[float] = [0.0] * len(docs)
+    for item in results:
+        if isinstance(item, dict) and "index" in item:
+            idx = int(item["index"])
+            if 0 <= idx < len(docs):
+                scores[idx] = float(item.get("relevance_score") or 0.0)
+    return scores
+
+
+def vl_embed(contents: list[dict[str, Any]]) -> list[list[float]]:
+    """Multimodal (image+text, same space) embeddings, one vector per content item.
+
+    ``contents`` items: ``{"image": <data_url or https url>}`` or ``{"text": str}``.
+    Raises when configured but failing — callers must not silently substitute
+    hash or text vectors for a live image-embedding failure.
+    """
+    url = image_embedding_endpoint()
+    if not url:
+        raise RuntimeError("未配置图像向量端点 / image embedding endpoint not configured")
+    key = image_embedding_api_key()
+    if not key:
+        raise RuntimeError(
+            "已配置图像向量端点但缺少 API Key / image embedding URL set but key is empty"
+        )
+    payload = {
+        "model": image_embedding_model(),
+        "input": {"contents": [{"image": c["image"]} if "image" in c else {"text": c["text"]} for c in contents]},
+    }
+    req = urllib.request.Request(
+        url, data=json.dumps(payload).encode(), method="POST",
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError) as exc:
+        detail = ""
+        if isinstance(exc, urllib.error.HTTPError):
+            detail = exc.read().decode("utf-8", errors="replace")[:300]
+        raise RuntimeError(f"图像向量端点失败 / image embedding HTTP error: {exc} {detail}") from exc
+    embeddings = (body.get("output") or {}).get("embeddings") if isinstance(body, dict) else None
+    if not isinstance(embeddings, list) or len(embeddings) != len(contents):
+        raise RuntimeError("图像向量端点返回数量不一致 / image embedding count mismatch")
+    out: list[list[float]] = []
+    for item in embeddings:
+        vec = item.get("embedding") if isinstance(item, dict) else item
+        if not isinstance(vec, list) or not vec:
+            raise RuntimeError("图像向量端点缺少向量 / image embedding missing vector")
+        out.append([float(x) for x in vec])
+    return out
+
+
+def synthesize_answer(query: str, snippets: list[str]) -> str:
+    """Optional LLM rewrite. Empty string means caller should use extractive fallback."""
+    if not chat_endpoint() or not chat_model() or not provider_api_key():
+        return ""
+    context = "\n".join(snippets[:8])[:8000]
+    system = (
+        "你是银行 POC 知识库助手。只根据给定检索片段作答，"
+        "必须写出页码（及章节，若片段里有）。不要编造片段中没有的数字或结论。"
+    )
+    return chat_completion(
+        [
+            {"role": "system", "content": system},
+            {"role": "user", "content": f"问题：{query}\n\n检索片段：\n{context}\n\n请作答。"},
+        ]
+    )

@@ -16,6 +16,8 @@ from typing import Any, Protocol
 
 from poc.excel_guard_mcp.guards import _workspace_root
 
+from .embed import load_embedding_secrets
+
 logger = logging.getLogger("poc.kb")
 
 
@@ -202,17 +204,30 @@ class LocalVectorStore:
 
     def upsert(self, chunk_id: str, vector: list[float], meta: dict[str, Any]) -> None:
         data = self._load()
-        data[chunk_id] = {"vector": vector, "kind": meta.get("kind", "text")}
+        data[chunk_id] = {
+            "vector": vector,
+            "kind": meta.get("kind", "text"),
+            "dim": len(vector),
+        }
         self._save(data)
+
+    @staticmethod
+    def _record_dim(rec: dict[str, Any]) -> int:
+        """Records written before the dim field infer it from the vector length."""
+        dim = rec.get("dim")
+        if isinstance(dim, int) and dim > 0:
+            return dim
+        return len(rec.get("vector") or [])
 
     def knn(self, vector: list[float], k: int) -> list[tuple[str, float]]:
         from .embed import cosine
 
+        qdim = len(vector)
         data = self._load()
         scored = [
             (cid, cosine(vector, rec["vector"]))
             for cid, rec in data.items()
-            if rec.get("vector")
+            if rec.get("vector") and self._record_dim(rec) == qdim
         ]
         scored.sort(key=lambda item: item[1], reverse=True)
         return scored[: max(1, k)]
@@ -220,11 +235,14 @@ class LocalVectorStore:
     def knn_kind(self, vector: list[float], k: int, kind: str) -> list[tuple[str, float]]:
         from .embed import cosine
 
+        qdim = len(vector)
         data = self._load()
         scored = [
             (cid, cosine(vector, rec["vector"]))
             for cid, rec in data.items()
-            if rec.get("vector") and rec.get("kind") == kind
+            if rec.get("vector")
+            and rec.get("kind") == kind
+            and self._record_dim(rec) == qdim
         ]
         scored.sort(key=lambda item: item[1], reverse=True)
         return scored[: max(1, k)]
@@ -297,7 +315,7 @@ class ElasticsearchVectorStore:
 
     def __init__(self, url: str, index: str = "poc_kb_chunks") -> None:
         self.url = url.rstrip("/")
-        self.index = index
+        self.index_base = index
 
     def ping(self) -> bool:
         try:
@@ -306,7 +324,10 @@ class ElasticsearchVectorStore:
         except (urllib.error.URLError, TimeoutError, OSError):
             return False
 
-    def _ensure_index(self, dims: int) -> None:
+    def _index_name(self, dims: int) -> str:
+        return f"{self.index_base}_d{max(1, int(dims))}"
+
+    def _ensure_index(self, index: str, dims: int) -> None:
         mapping = {
             "mappings": {
                 "properties": {
@@ -316,7 +337,7 @@ class ElasticsearchVectorStore:
             }
         }
         req = urllib.request.Request(
-            f"{self.url}/{self.index}",
+            f"{self.url}/{index}",
             data=json.dumps(mapping).encode(),
             method="PUT",
             headers={"Content-Type": "application/json"},
@@ -329,11 +350,13 @@ class ElasticsearchVectorStore:
                 raise
 
     def upsert(self, chunk_id: str, vector: list[float], meta: dict[str, Any]) -> None:
-        self._ensure_index(max(1, len(vector)))
+        dims = max(1, len(vector))
+        index = self._index_name(dims)
+        self._ensure_index(index, dims)
         body = json.dumps({"vector": vector, "kind": meta.get("kind", "text")}).encode()
         encoded = urllib.parse.quote(chunk_id, safe="")
         req = urllib.request.Request(
-            f"{self.url}/{self.index}/_doc/{encoded}",
+            f"{self.url}/{index}/_doc/{encoded}?refresh=true",
             data=body,
             method="PUT",
             headers={"Content-Type": "application/json"},
@@ -342,6 +365,8 @@ class ElasticsearchVectorStore:
             resp.read()
 
     def knn(self, vector: list[float], k: int) -> list[tuple[str, float]]:
+        dims = max(1, len(vector))
+        index = self._index_name(dims)
         body = json.dumps({
             "knn": {
                 "field": "vector",
@@ -351,28 +376,54 @@ class ElasticsearchVectorStore:
             }
         }).encode()
         req = urllib.request.Request(
-            f"{self.url}/{self.index}/_search",
+            f"{self.url}/{index}/_search",
             data=body,
             method="POST",
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            payload = json.loads(resp.read().decode("utf-8"))
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                payload = json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404:
+                return []
+            raise
         hits = payload.get("hits", {}).get("hits", [])
         return [(h["_id"], float(h.get("_score") or 0.0)) for h in hits]
 
-    def delete(self, chunk_id: str) -> None:
-        encoded = urllib.parse.quote(chunk_id, safe="")
+    def _matching_indices(self) -> list[str]:
         req = urllib.request.Request(
-            f"{self.url}/{self.index}/_doc/{encoded}",
-            method="DELETE",
+            f"{self.url}/_cat/indices/{self.index_base}*?format=json"
         )
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:
-                resp.read()
+                rows = json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
-            if exc.code != 404:
-                raise
+            if exc.code == 404:
+                return []
+            raise
+        except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError):
+            return []
+        names: list[str] = []
+        for row in rows if isinstance(rows, list) else []:
+            name = row.get("index") if isinstance(row, dict) else None
+            if name:
+                names.append(str(name))
+        return names
+
+    def delete(self, chunk_id: str) -> None:
+        encoded = urllib.parse.quote(chunk_id, safe="")
+        for index in self._matching_indices():
+            req = urllib.request.Request(
+                f"{self.url}/{index}/_doc/{encoded}",
+                method="DELETE",
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    resp.read()
+            except urllib.error.HTTPError as exc:
+                if exc.code != 404:
+                    raise
 
 
 class MySQLRelationalStore:
@@ -421,7 +472,7 @@ class MySQLRelationalStore:
             self._ready = True
             return True
         except Exception as exc:  # noqa: BLE001
-            logger.warning("MySQL ping failed: %s", exc)
+            logger.warning("MySQL ping failed: %s", type(exc).__name__)
             return False
 
     def upsert_document(self, doc_id: str, meta: dict[str, Any]) -> None:
@@ -535,13 +586,8 @@ class GalaxybaseGraphStore:
         self.live = False
 
     def ping(self) -> bool:
-        if not self.url:
-            return False
-        try:
-            with urllib.request.urlopen(self.url, timeout=2) as resp:
-                return 200 <= getattr(resp, "status", 200) < 300
-        except (urllib.error.URLError, TimeoutError, OSError):
-            return False
+        """Always False: HTTP 200 is not a Galaxybase write protocol."""
+        return False
 
     def upsert_relations(self, chunk: dict[str, Any]) -> None:
         if self.url:
@@ -564,7 +610,7 @@ class StoreBundle:
     relational: Any
     vector: Any
     graph: Any
-    names: dict[str, str] = field(default_factory=dict)
+    names: dict[str, Any] = field(default_factory=dict)
     root: Path = field(default_factory=Path)
 
 
@@ -576,7 +622,8 @@ def store_root() -> tuple[Path | None, dict | None]:
 
 
 def open_stores(root: Path | None = None) -> StoreBundle:
-    """Pick live ES/MySQL/GALASYBASE when they ping; otherwise local fallbacks."""
+    """Pick live ES/MySQL when they ping. GALASYBASE is never live (local graph)."""
+    load_embedding_secrets()
     if root is None:
         resolved, err = store_root()
         if err or resolved is None:
@@ -623,6 +670,7 @@ def open_stores(root: Path | None = None) -> StoreBundle:
             "vector": vec_name,
             "graph": graph_name,
             "graph_adapter": "galasybase",
+            "graph_live": False,
         },
         root=root,
     )

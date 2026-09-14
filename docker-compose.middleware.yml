@@ -1,0 +1,53 @@
+# Dedicated POC middleware. Do not bind host 3306/9200 (already occupied).
+# Galaxybase (创邻 GALASYBASE) has no public Docker Hub image / license tarball
+# on this host — do not add a fake graph container here.
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    container_name: shunde-poc-es
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.security.http.ssl.enabled: "false"
+      xpack.ml.enabled: "false"
+      ingest.geoip.downloader.enabled: "false"
+      cluster.name: shunde-poc
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "127.0.0.1:19200:9200"
+    volumes:
+      - shunde-poc-es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9200 >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    mem_limit: 1g
+
+  mysql:
+    image: mysql:8.0
+    container_name: shunde-poc-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: poc_kb
+      MYSQL_USER: poc
+      MYSQL_PASSWORD: ${POC_MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${POC_MYSQL_ROOT_PASSWORD}
+    ports:
+      - "127.0.0.1:13306:3306"
+    volumes:
+      - shunde-poc-mysql-data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    mem_limit: 512m
+
+volumes:
+  shunde-poc-es-data:
+  shunde-poc-mysql-data:

@@ -7,8 +7,20 @@ import math
 from collections import Counter
 from typing import Any
 
-from .embed import embed_texts, synthesize_answer, tokenize
+from .embed import (
+    embed_texts,
+    image_embedding_endpoint,
+    rerank_scores,
+    reranker_endpoint,
+    reranker_model,
+    synthesize_answer,
+    tokenize,
+    vl_embed,
+)
+from .errors import with_error_type
 from .stores import StoreBundle, open_stores
+
+RERANK_TOP_N = 16
 
 
 def classify_query(query: str) -> str:
@@ -126,7 +138,7 @@ def search_knowledge(
     try:
         q_vec = embed_texts([query])[0]
     except RuntimeError as exc:
-        return {"ok": False, "hits": [], "message": str(exc)}
+        return with_error_type({"ok": False, "hits": [], "message": str(exc)})
 
     knn_fn = getattr(bundle.vector, "knn", None)
     text_ranked: list[str] = []
@@ -136,15 +148,32 @@ def search_knowledge(
             text_ranked = [cid for cid, _ in knn_fn(q_vec, max(k * 4, 16)) if cid in by_id]
             knn_kind = getattr(bundle.vector, "knn_kind", None)
             if callable(knn_kind):
+                # Image retrieval uses a query vector in the same space as the
+                # stored image vectors when the multimodal endpoint is set;
+                # otherwise fall back to the text embedding + kind filter.
+                image_qvec = q_vec
+                if image_embedding_endpoint():
+                    try:
+                        image_qvec = vl_embed([{"text": query}])[0]
+                    except Exception as exc:  # noqa: BLE001 — no silent substitution
+                        return with_error_type(
+                            {
+                                "ok": False,
+                                "hits": [],
+                                "message": f"图像查询向量失败 / image query embedding failed: {exc}",
+                            }
+                        )
                 image_ranked = [
-                    cid for cid, _ in knn_kind(q_vec, max(k * 4, 16), "image") if cid in by_id
+                    cid for cid, _ in knn_kind(image_qvec, max(k * 4, 16), "image") if cid in by_id
                 ]
             else:
                 image_ranked = [
                     cid for cid in text_ranked if by_id[cid].get("kind") == "image"
                 ]
     except Exception as exc:  # noqa: BLE001
-        return {"ok": False, "hits": [], "message": f"向量检索失败 / vector search failed: {exc}"}
+        return with_error_type(
+            {"ok": False, "hits": [], "message": f"向量检索失败 / vector search failed: {exc}"}
+        )
 
     mode_norm = (mode or "hybrid").lower()
     if mode_norm == "bm25":
@@ -170,6 +199,38 @@ def search_knowledge(
         source = "hybrid"
         ordered = sorted(fused, key=lambda cid: fused[cid], reverse=True)
 
+    rerank_note = ""
+    reranked = False
+    if source == "hybrid" and ordered and reranker_endpoint():
+        top = ordered[:RERANK_TOP_N]
+        rest = ordered[RERANK_TOP_N:]
+        docs: list[str] = []
+        idxs: list[int] = []
+        for i, cid in enumerate(top):
+            chunk = by_id.get(cid) or {}
+            doc = chunk.get("text") or chunk.get("image_description") or chunk.get("table_csv") or ""
+            if doc:
+                docs.append(doc)
+                idxs.append(i)
+        try:
+            scores = rerank_scores(query, docs) if docs else []
+        except RuntimeError as exc:
+            # Keep the RRF order on reranker failure, but say so — never claim
+            # a rerank that did not happen.
+            rerank_note = f"；重排序失败，保留 RRF 排序：{exc}"
+        else:
+            if scores and len(scores) == len(docs):
+                ranked = sorted(zip(idxs, scores, strict=False), key=lambda p: p[1], reverse=True)
+                reranked_ids = [top[i] for i, _score in ranked]
+                skipped = [top[i] for i in range(len(top)) if i not in set(idxs)]
+                ordered = reranked_ids + skipped + rest
+                reranked = True
+                rerank_note = (
+                    f"；已用 {reranker_model()} 对前 {len(reranked_ids)}/{len(top)} 个候选重排序"
+                )
+            else:
+                rerank_note = "；重排序未返回有效分数，保留 RRF 排序"
+
     hits: list[dict[str, Any]] = []
     seen: set[str] = set()
     for cid in ordered:
@@ -186,12 +247,15 @@ def search_knowledge(
         if len(hits) >= max(k * 2, k):
             break
 
-    return {
+    result: dict[str, Any] = {
         "ok": True,
         "hits": hits[: max(1, k * 2)],
-        "message": f"{len(hits)} hits via {source}",
+        "message": f"{len(hits)} hits via {source}" + rerank_note,
         "mode": mode_norm,
     }
+    if reranked:
+        result["reranked"] = True
+    return result
 
 
 def _diversify_by_page(hits: list[dict[str, Any]], per_page: int = 1) -> list[dict[str, Any]]:

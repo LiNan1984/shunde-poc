@@ -1,13 +1,13 @@
 """stdio smoke test for the four MCP servers.
 
 Sends JSON-RPC over stdin and reads responses from stdout to confirm:
-- excel-guard MCP exposes 3 tools
+- excel-guard MCP exposes 5 tools
 - report-visualizer MCP exposes 7 tools
 - ops-data MCP exposes 3 tools
-- kb-qa MCP exposes 4 tools (parse_document, ingest_document,
-  search_knowledge, answer_knowledge)
+- kb-qa MCP exposes 6 tools (parse_document, ingest_document,
+  ingest_spreadsheet, search_knowledge, answer_knowledge, analyze_page)
 
-Total: 3 + 7 + 3 + 4 = 17 tools.
+Total: 5 + 7 + 3 + 6 = 21 tools.
 
 kb-qa additionally: two consecutive ``python -m poc.kb_mcp`` initialize
 handshakes, plus one in-process ingest+search against a small fixture PDF
@@ -33,10 +33,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 EXPECTED = {
-    "poc.excel_guard_mcp": 3,
+    "poc.excel_guard_mcp": 5,
     "poc.report_mcp": 7,
     "poc.ops_mcp": 3,
-    "poc.kb_mcp": 4,
+    "poc.kb_mcp": 6,
 }
 
 
@@ -126,10 +126,10 @@ def main() -> int:
     rc = 0
     summary = []
     pairs = [
-        ("poc.excel_guard_mcp", 3, _excel_mcp),
+        ("poc.excel_guard_mcp", 5, _excel_mcp),
         ("poc.report_mcp", 7, _report_mcp),
         ("poc.ops_mcp", 3, _ops_mcp),
-        ("poc.kb_mcp", 4, _kb_mcp),
+        ("poc.kb_mcp", 6, _kb_mcp),
     ]
     kb_launch_1 = kb_launch_2 = None
     kb_roundtrip = None

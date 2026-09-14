@@ -32,3 +32,6 @@ kb_store/
 # MinerU is large (models + venv); keep local only.
 # Official QwenPaw is a git submodule (see .gitmodules) — do not vendor a fork.
 MinerU/
+
+# QwenPaw/ is vendored/checked out locally for some setups; the official copy is a submodule.
+QwenPaw/

@@ -1,0 +1,74 @@
+[
+  {
+    "question": "对公信贷逾期90天的认定标准适用于哪些产品？",
+    "doc_id": "credit-policy",
+    "modality": "text",
+    "expected_keywords": ["逾期90天", "对公贷款"],
+    "expected_page": 1,
+    "note": "正文第一章：认定标准适用于所有对公贷款产品（夹具写死 ALPHAKEY 句）。"
+  },
+  {
+    "question": "资本充足率不得低于多少，由谁按季审议？",
+    "doc_id": "credit-policy",
+    "modality": "text",
+    "expected_keywords": ["资本充足率", "风险管理委员会"],
+    "expected_page": 2,
+    "note": "正文第二章风险管理，两关键词同页。"
+  },
+  {
+    "question": "总结全行信贷政策与风险管理的总体情况",
+    "doc_id": "credit-policy",
+    "modality": "text",
+    "expected_keywords": ["不良贷款率", "总体有效"],
+    "expected_page": 3,
+    "note": "overview 类问题，走 classify_query=overview 的分页多样化路径。"
+  },
+  {
+    "question": "产品定价表里经营贷款的利率是多少？",
+    "doc_id": "pricing",
+    "modality": "table",
+    "expected_keywords": ["经营贷款", "4.20"],
+    "expected_page": 1,
+    "note": "答案在 table_csv 行「经营贷款,4.20,860」里，离线检索应命中。"
+  },
+  {
+    "question": "住房按揭的利率和余额分别是多少？",
+    "doc_id": "pricing",
+    "modality": "table",
+    "expected_keywords": ["住房按揭", "3.85", "1200"],
+    "expected_page": 1,
+    "note": "同一表格的两列数值，验证多关键词联合命中。"
+  },
+  {
+    "question": "文档里嵌的图表图片上写了什么字？",
+    "doc_id": "pricing",
+    "modality": "image",
+    "expected_keywords": ["RATECHART"],
+    "expected_page": 1,
+    "note": "RATECHART 只存在于嵌入 PNG；装了 tesseract 时 OCR 描述可命中，否则离线必失配——正是图片模态的差距样本。"
+  },
+  {
+    "question": "BranchA 网点 2025 年四季度贷款余额是多少亿元？",
+    "doc_id": "branch-balance",
+    "modality": "image",
+    "expected_keywords": ["1.23"],
+    "expected_page": 1,
+    "note": "答案只在柱子高度里（poc/fixtures/generate_fixtures.py BRANCH_BALANCE_VALUES），正文无此数字，离线检索必失配。"
+  },
+  {
+    "question": "BranchC 网点的贷款余额是多少亿元？",
+    "doc_id": "branch-balance",
+    "modality": "image",
+    "expected_keywords": ["3.69"],
+    "expected_page": 1,
+    "note": "同上，最高柱；仅 --live 的 analyze_page（视觉模型看页面 PNG）可答。"
+  },
+  {
+    "question": "哪份文档介绍了各网点贷款余额？",
+    "doc_id": "branch-balance",
+    "modality": "text",
+    "expected_keywords": ["贷款余额"],
+    "expected_page": 1,
+    "note": "图表文档的可离线命中文本题（标题正文不含任何数值）。"
+  }
+]

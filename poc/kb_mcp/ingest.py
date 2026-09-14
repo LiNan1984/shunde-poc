@@ -1,19 +1,171 @@
 # -*- coding: utf-8 -*-
-"""Parse a PDF and write page images / metadata / vectors / graph relations."""
+"""Parse a PDF or spreadsheet metadata and write stores (vectors / graph / meta)."""
 
 from __future__ import annotations
 
+import base64
 import logging
+import mimetypes
 from pathlib import Path
 from typing import Any
 
 from poc.excel_guard_mcp.guards import _resolve_allowed_path
 
-from .embed import embedding_backend_name, embed_texts
+from .embed import embedding_backend_name, embed_texts, image_embedding_backend_name, image_embedding_endpoint
+from .errors import with_error_type
 from .parse import _safe_doc_id, parse_pdf
+from .spreadsheet import parse_spreadsheet_metadata
 from .stores import StoreBundle, open_stores, store_root
 
 logger = logging.getLogger("poc.kb")
+
+_VL_BATCH = 8
+
+
+def _sandbox_denied(err: dict[str, Any]) -> dict[str, Any]:
+    issue = err.get("issue") or "path_denied"
+    if issue == "path_denied":
+        message = "路径越界 / Path outside workspace"
+    else:
+        message = err.get("message") or "路径无效 / Invalid path"
+    return {
+        "ok": False,
+        "issue": issue,
+        "message": message,
+        "n_chunks": 0,
+        "stores": {},
+    }
+
+
+def _image_vectors_for_chunks(chunks: list[dict[str, Any]]) -> dict[str, list[float]]:
+    """Real image embeddings for ``kind=="image"`` chunks that have a usable image file.
+
+    Reads the image (embedded image path first, page PNG as fallback), encodes it
+    as a base64 data URL and calls ``vl_embed`` (image+text share one vector
+    space). Returns ``{chunk_id: vector}``; raises on endpoint failure — the
+    caller must not fall back to caption/text vectors.
+    """
+    items: list[tuple[str, str]] = []
+    for chunk in chunks:
+        if (chunk.get("kind") or "text") != "image":
+            continue
+        path_str = str(chunk.get("screenshot") or chunk.get("page_image") or "")
+        if not path_str:
+            continue
+        path = Path(path_str)
+        try:
+            data = path.read_bytes()
+        except OSError as exc:
+            logger.warning("cannot read image %s for embedding: %s", path, exc)
+            continue
+        if not data:
+            continue
+        mime = mimetypes.guess_type(path.name)[0] or "image/png"
+        data_url = f"data:{mime};base64," + base64.b64encode(data).decode("ascii")
+        items.append((chunk["chunk_id"], data_url))
+
+    out: dict[str, list[float]] = {}
+    from . import embed as embed_mod
+
+    for start in range(0, len(items), _VL_BATCH):
+        batch = items[start : start + _VL_BATCH]
+        vectors = embed_mod.vl_embed([{"image": url} for _cid, url in batch])
+        for (cid, _url), vec in zip(batch, vectors, strict=False):
+            out[cid] = vec
+    return out
+
+
+def _commit_chunks(
+    *,
+    bundle: StoreBundle,
+    used_id: str,
+    resolved: Path | None,
+    chunks: list[dict[str, Any]],
+    n_pages: int,
+    backend: str,
+    message: str,
+    store_page_images: bool,
+) -> dict[str, Any]:
+    bundle.names["embedding"] = embedding_backend_name()
+    bundle.names["image_embedding"] = image_embedding_backend_name()
+    try:
+        texts = [c.get("text") or "" for c in chunks]
+        vectors = embed_texts(texts) if chunks else []
+    except Exception as exc:  # noqa: BLE001 — never hash-embed after a live failure
+        return {
+            "ok": False,
+            "message": str(exc),
+            "doc_id": used_id,
+            "n_chunks": 0,
+            "n_pages": n_pages,
+            "stores": dict(bundle.names),
+        }
+
+    if image_embedding_endpoint() and chunks:
+        try:
+            image_vectors = _image_vectors_for_chunks(chunks)
+        except Exception as exc:  # noqa: BLE001 — never fall back to caption vectors
+            return with_error_type(
+                {
+                    "ok": False,
+                    "message": f"图像向量入库失败 / image embedding failed: {exc}",
+                    "doc_id": used_id,
+                    "n_chunks": 0,
+                    "n_pages": n_pages,
+                    "stores": dict(bundle.names),
+                }
+            )
+        by_id = {c["chunk_id"]: i for i, c in enumerate(chunks)}
+        for cid, vec in image_vectors.items():
+            idx = by_id.get(cid)
+            if idx is not None:
+                vectors[idx] = vec
+
+    try:
+        for row in bundle.relational.list_chunks(doc_id=used_id):
+            cid = row.get("chunk_id") or ""
+            if cid:
+                bundle.relational.delete_chunk(cid)
+                bundle.vector.delete(cid)
+        bundle.relational.upsert_document(
+            used_id,
+            {
+                "path": str(resolved) if resolved is not None else "",
+                "n_pages": n_pages,
+                "backend": backend,
+            },
+        )
+        for chunk, vector in zip(chunks, vectors, strict=False):
+            page_image = chunk.get("page_image") or ""
+            if store_page_images and page_image:
+                stored = bundle.objects.put_page_image(
+                    used_id, int(chunk.get("page") or 0), Path(page_image)
+                )
+                chunk["page_image"] = stored
+            bundle.relational.upsert_chunk(chunk)
+            bundle.vector.upsert(
+                chunk["chunk_id"], vector, {"kind": chunk.get("kind") or "text"}
+            )
+            bundle.graph.upsert_relations(chunk)
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "message": f"入库失败 / ingest failed: {exc}",
+            "doc_id": used_id,
+            "n_chunks": 0,
+            "n_pages": n_pages,
+            "stores": dict(bundle.names),
+        }
+
+    return {
+        "ok": True,
+        "doc_id": used_id,
+        "n_pages": n_pages,
+        "n_chunks": len(chunks),
+        "backend": backend,
+        "stores": dict(bundle.names),
+        "message": message or f"ingested {len(chunks)} chunks",
+    }
 
 
 def ingest_pdf(
@@ -33,7 +185,6 @@ def ingest_pdf(
         return {**parsed, "n_chunks": parsed.get("n_chunks") or 0, "stores": {}}
 
     bundle = stores or open_stores()
-    bundle.names["embedding"] = embedding_backend_name()
     used_id = _safe_doc_id(str(parsed.get("doc_id") or doc_id or "doc"))
     chunks: list[dict[str, Any]] = [
         c for c in (parsed.get("chunks") or []) if isinstance(c, dict)
@@ -44,64 +195,54 @@ def ingest_pdf(
         if img:
             img_path, img_err = _resolve_allowed_path(str(img))
             chunk["page_image"] = str(img_path) if img_path is not None and img_err is None else ""
-    try:
-        texts = [c.get("text") or "" for c in chunks]
-        vectors = embed_texts(texts) if chunks else []
-    except Exception as exc:  # noqa: BLE001 — never hash-embed after a live failure
-        return {
-            "ok": False,
-            "message": str(exc),
-            "doc_id": used_id,
-            "n_chunks": 0,
-            "n_pages": parsed.get("n_pages") or 0,
-            "stores": dict(bundle.names),
-        }
+    return _commit_chunks(
+        bundle=bundle,
+        used_id=used_id,
+        resolved=resolved,
+        chunks=chunks,
+        n_pages=int(parsed.get("n_pages") or 0),
+        backend=str(parsed.get("backend") or "local"),
+        message=str(parsed.get("message") or ""),
+        store_page_images=True,
+    )
 
-    try:
-        for row in bundle.relational.list_chunks(doc_id=used_id):
-            cid = row.get("chunk_id") or ""
-            if cid:
-                bundle.relational.delete_chunk(cid)
-                bundle.vector.delete(cid)
-        bundle.relational.upsert_document(
-            used_id,
-            {
-                "path": str(resolved),
-                "n_pages": parsed.get("n_pages") or 0,
-                "backend": parsed.get("backend") or "local",
-            },
-        )
-        for chunk, vector in zip(chunks, vectors, strict=False):
-            page_image = chunk.get("page_image") or ""
-            if page_image:
-                stored = bundle.objects.put_page_image(
-                    used_id, int(chunk.get("page") or 0), Path(page_image)
-                )
-                chunk["page_image"] = stored
-            bundle.relational.upsert_chunk(chunk)
-            bundle.vector.upsert(
-                chunk["chunk_id"], vector, {"kind": chunk.get("kind") or "text"}
-            )
-            bundle.graph.upsert_relations(chunk)
-    except Exception as exc:  # noqa: BLE001
-        return {
-            "ok": False,
-            "message": f"入库失败 / ingest failed: {exc}",
-            "doc_id": used_id,
-            "n_chunks": 0,
-            "n_pages": parsed.get("n_pages") or 0,
-            "stores": dict(bundle.names),
-        }
 
-    return {
-        "ok": True,
-        "doc_id": used_id,
-        "n_pages": parsed.get("n_pages") or 0,
-        "n_chunks": len(chunks),
-        "backend": parsed.get("backend") or "local",
-        "stores": dict(bundle.names),
-        "message": parsed.get("message") or f"ingested {len(chunks)} chunks",
-    }
+def ingest_spreadsheet(
+    path: str,
+    *,
+    doc_id: str = "",
+    sample_rows: int = 5,
+    stores: StoreBundle | None = None,
+) -> dict[str, Any]:
+    """Index spreadsheet metadata only (filename, sheets, headers, sample rows)."""
+    resolved, err = _resolve_allowed_path(path)
+    if err is not None:
+        return _sandbox_denied(err)
+
+    parsed = parse_spreadsheet_metadata(
+        path, doc_id=doc_id, sample_rows=sample_rows
+    )
+    if not parsed.get("ok"):
+        return {**parsed, "n_chunks": parsed.get("n_chunks") or 0, "stores": {}}
+
+    bundle = stores or open_stores()
+    used_id = _safe_doc_id(str(parsed.get("doc_id") or doc_id or "sheet"))
+    chunks: list[dict[str, Any]] = [
+        c for c in (parsed.get("chunks") or []) if isinstance(c, dict)
+    ]
+    for chunk in chunks:
+        chunk["doc_id"] = used_id
+        chunk["page_image"] = ""
+    return _commit_chunks(
+        bundle=bundle,
+        used_id=used_id,
+        resolved=resolved,
+        chunks=chunks,
+        n_pages=int(parsed.get("n_pages") or len(chunks)),
+        backend=str(parsed.get("backend") or "spreadsheet-meta"),
+        message=str(parsed.get("message") or ""),
+        store_page_images=False,
+    )
 
 
 def drop_chunk(chunk_id: str, stores: StoreBundle | None = None) -> dict[str, Any]:
