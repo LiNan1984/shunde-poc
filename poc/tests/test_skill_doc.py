@@ -11,10 +11,10 @@ EXPECTED_SECTIONS = ("触发词", "参数", "返回值", "边界")
 EXPECTED_FRONTMATTER = {"name", "description"}
 
 SKILLS = [
-    ("excel-qa-bank", {"detect_corrupt_workbook", "chunk_large_workbook"}),
+    ("excel-qa-bank", {"detect_corrupt_workbook", "chunk_large_workbook", "describe_workbook"}),
     ("report-visualizer", {"pivot_table_tool", "render_bar_tool", "render_docx_report_tool"}),
     ("ops-assistant", {"summarize_calls_tool", "recent_events_tool", "list_telemetry_files_tool"}),
-    ("kb-qa-bank", {"ingest_document", "search_knowledge", "answer_knowledge"}),
+    ("kb-qa-bank", {"ingest_document", "ingest_spreadsheet", "search_knowledge", "answer_knowledge"}),
 ]
 
 
@@ -68,6 +68,9 @@ def test_excel_skill_mentions_excel_guard_tools() -> None:
     _, body = _load("excel-qa-bank")
     assert "detect_corrupt_workbook" in body
     assert "chunk_large_workbook" in body
+    assert "describe_workbook" in body
+    assert "sheet_to_markdown" in body
+    assert "pandas" in body.lower()
 
 
 def test_report_skill_mentions_mcp_tools() -> None:
@@ -88,5 +91,14 @@ def test_ops_skill_mentions_mcp_tools() -> None:
 
 def test_kb_skill_mentions_mcp_tools() -> None:
     _, body = _load("kb-qa-bank")
-    for tool in ("parse_document", "ingest_document", "search_knowledge", "answer_knowledge"):
+    for tool in (
+        "parse_document",
+        "ingest_document",
+        "ingest_spreadsheet",
+        "search_knowledge",
+        "answer_knowledge",
+        "analyze_page",
+    ):
         assert tool in body, f"kb-qa-bank SKILL.md missing tool mention: {tool}"
+    assert "定位" in body or "locate" in body.lower()
+    assert "pandas" in body.lower() or "excel-qa-bank" in body

@@ -1,6 +1,6 @@
 ---
 name: excel-qa-bank
-description: "当用户上传或指定 Excel/CSV 并提出读取、查询、分析、写入类问题时使用。触发词：excel问答、表格分析、xlsx、csv查询。先调用 excel-guard MCP 检查损坏/编码/超大分块，再进行问答。"
+description: "当用户上传或指定 Excel/CSV 并提出读取、查询、分析、写入类问题时使用。触发词：excel问答、表格分析、xlsx、csv查询。先调用 excel-guard MCP 检查损坏/编码/超大分块并 describe_workbook 预览结构，再 pandas 计算；不要把整表当 RAG 答案。"
 metadata:
   poc_version: "0.1"
 ---
@@ -15,7 +15,7 @@ metadata:
 
 ## 描述
 
-面向银行 POC 演示场景的表格问答技能：用户提供 Excel（`.xlsx` / `.xlsm`）或 CSV，并提出读取、筛选、聚合、写回等问题时启用本技能。处理前必须先走 `excel-guard` MCP，覆盖损坏检测、编码识别与超大文件分块。
+面向银行 POC 演示场景的表格问答技能：用户提供 Excel（`.xlsx` / `.xlsm`）或 CSV，并提出读取、筛选、聚合、写回等问题时启用本技能。处理前必须先走 `excel-guard` MCP：损坏检测、编码识别、超大分块，再用 `describe_workbook`（必要时 `sheet_to_markdown` 小区间）看清结构，最后用 pandas / openpyxl 计算。筛选、合计、写回必须以代码执行结果为准，不得把整表转成 markdown 后靠模型猜，也不得用知识库切片当数值答案。
 
 ## 触发词
 
@@ -64,7 +64,7 @@ metadata:
 
 ## 与 MCP `excel-guard` 的协作流程
 
-每次处理用户表格前，按顺序调用以下三个 MCP 工具（stdio FastMCP，配置见 `poc/config/mcp-excel-guard.json`）：
+每次处理用户表格前，**优先一次调用 `preflight_workbook`（python 内 `from poc.excel_guard_mcp.readers import preflight_workbook`）**——它串行执行下面 1-3 步并在损坏时短路（`proceed=false` 即终止）。仅在需要单项重查时才分别调用以下 MCP 工具（stdio FastMCP，配置见 `poc/config/mcp-excel-guard.json`）：
 
 1. **`detect_corrupt_workbook`**  
    - 入参：文件路径  
@@ -78,6 +78,26 @@ metadata:
    - 入参：文件路径，可选 `max_rows`（默认 5000）  
    - 若 `needs_chunking=true`：按返回的 `chunks` 分块读取与分析，再汇总答案。
 
+4. **`describe_workbook`**（护栏通过后、写 pandas 之前必做）  
+   - 入参：文件路径，可选 `preview_rows`（默认 5）  
+   - 返回 sheet 清单、行列数、表头、短预览。用它决定读哪张表、哪些列，禁止盲跑 pandas。
+
+5. **`sheet_to_markdown`**（可选，仅小区间）  
+   - 入参：文件路径、可选 `sheet`、闭区间 `start_row` / `end_row`（`end_row=0` 时默认读 `max_rows`（默认 500）行）  
+   - 返回表头 + 该行区间的 markdown（区间不含表头行时会自动附上投票表头）。小表或用户要「先看几行」时用；大表只导出当前分块，不要整表灌进上下文。
+
+6. **写后自检：`audit_workbook`**（python 代码内调用，非 MCP 工具）  
+   - `from poc.excel_guard_mcp.readers import audit_workbook; audit_workbook(path)`  
+   - 任何写回操作完成后必须执行：缓存错误值（`#REF!`、`#DIV/0!` 等）归入 `must_fix`，公式中疑似硬编码的 3 位以上数字归入 `review`。有 `must_fix` 时必须修复后重新自检，不得直接向用户交付。
+
+## 多文件场景：先路由再计算
+
+用户上传多个 Excel/CSV 或询问「哪个文件里有 XX 数据」时，不要逐个打开：
+
+1. 用 kb-qa MCP 的 `ingest_spreadsheet`（`poc/kb_mcp`）把每个文件的元数据（文件名 / sheet 名 / 表头 / 样例行）索引进知识库——只索引元数据，不索引数据行。
+2. `search_knowledge` 语义检索定位目标文件与 sheet。
+3. 命中后再用 pandas / openpyxl 打开原文件做精确计算。检索只负责「找文件」，代码负责「算数字」。
+
 推荐流程：
 
 ```
@@ -90,11 +110,22 @@ detect_corrupt_workbook ──损坏──▶ 返回 MCP 提示，结束
 detect_encoding（CSV/文本表必做；xlsx 可跳过）
         │
         ▼
-chunk_large_workbook ──需分块──▶ 按 chunks 迭代分析
-        │ 无需分块
+chunk_large_workbook ──需分块──▶ 记住 chunks，后面按区间读
+        │
+        ▼
+describe_workbook（看 sheet / 表头 / 预览 / 合并区域 / 公式别名）
+        │ 小区间预览可选 sheet_to_markdown
         ▼
 pandas / openpyxl 读查析写 → 返回答案 / 写回路径
+        │ 写回后必做
+        ▼
+audit_workbook（must_fix 修复后重检；review 复核硬编码）
 ```
+
+多文件场景：`ingest_spreadsheet` 索引元数据 → `search_knowledge` 路由 → pandas 打开命中文件精算。
+```
+
+多文件「哪张表里有 XX」时，可先让 `kb-qa-bank` 的 `ingest_spreadsheet` / `search_knowledge` **定位文件**，再回到本技能用 pandas 计算。知识库命中只用于选文件，不用于加总或筛选。
 
 ## 可参考内置 xlsx skill 的 pandas / openpyxl 用法简述
 

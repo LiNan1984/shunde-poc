@@ -1,0 +1,86 @@
+{
+  "version": "1.0",
+  "dir": "/Users/linan/Desktop/aicode/shunde/poc/fixtures/qa_fixtures",
+  "questions": [
+    {
+      "id": "q01_shunde_total",
+      "file": "销售明细.xlsx",
+      "sheet": "销售明细",
+      "question": "顺德地区的销售额合计是多少？",
+      "expected": 219950.0,
+      "check": "number"
+    },
+    {
+      "id": "q02_row_count",
+      "file": "销售明细.xlsx",
+      "sheet": "销售明细",
+      "question": "销售明细一共有多少条记录？",
+      "expected": 40,
+      "check": "number"
+    },
+    {
+      "id": "q03_top_branch",
+      "file": "销售明细.xlsx",
+      "sheet": "销售明细",
+      "question": "单笔销售额最高的一笔发生在哪个网点？",
+      "expected": "禅城支行",
+      "check": "text"
+    },
+    {
+      "id": "q04_top_region",
+      "file": "销售明细.xlsx",
+      "sheet": "销售明细",
+      "question": "哪个地区的销售额合计最高？",
+      "expected": "顺德",
+      "check": "text"
+    },
+    {
+      "id": "q05_gz_jan_total",
+      "file": "销售明细.xlsx",
+      "sheet": "销售明细",
+      "question": "广州地区2024年1月的销售额合计是多少？",
+      "expected": 107495.0,
+      "check": "number"
+    },
+    {
+      "id": "q06_sd_2024_sales",
+      "file": "分区域汇总.xlsx",
+      "sheet": "分区域汇总",
+      "question": "顺德2024年销售额是多少？（注意表头有两级且含合并单元格）",
+      "expected": 1250000.5,
+      "check": "number"
+    },
+    {
+      "id": "q07_gz_2025_orders",
+      "file": "分区域汇总.xlsx",
+      "sheet": "分区域汇总",
+      "question": "广州2025年的订单数是多少？",
+      "expected": 6120,
+      "check": "number"
+    },
+    {
+      "id": "q08_revenue_total",
+      "file": "公式列.xlsx",
+      "sheet": "收入计算",
+      "question": "全部商品的收入合计是多少？（收入列为公式，文件未缓存计算值）",
+      "expected": 73814.0,
+      "check": "number"
+    },
+    {
+      "id": "q09_revenue_over_5000",
+      "file": "公式列.xlsx",
+      "sheet": "收入计算",
+      "question": "收入超过5000的商品有几种？",
+      "expected": 9,
+      "check": "number"
+    },
+    {
+      "id": "q10_retail_headcount",
+      "file": "网点名单.csv",
+      "sheet": "",
+      "question": "零售部一共有多少人？（CSV 为 GBK 编码）",
+      "expected": 12,
+      "check": "number"
+    }
+  ]
+}

@@ -18,6 +18,7 @@ from poc.excel_guard_mcp.guards import (
     detect_corrupt_workbook,
     detect_encoding,
 )
+from poc.excel_guard_mcp.readers import describe_workbook, sheet_to_markdown
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = REPO_ROOT / "poc" / "fixtures"
@@ -143,6 +144,21 @@ def test_committed_fixtures_smoke(monkeypatch: pytest.MonkeyPatch) -> None:
     large = chunk_large_workbook(str(FIXTURES / "large_chunk_demo.xlsx"), max_rows=5000)
     assert large["needs_chunking"] is True
     assert large["total_rows"] > 5000
+
+    income = FIXTURES / "收支明细_顺德.xlsx"
+    assert income.is_file()
+    assert "测试集" not in income.name
+    described = describe_workbook(str(income))
+    assert described["ok"] is True
+    sheet = described["sheets"][0]
+    assert sheet["name"] == "Sheet1"
+    assert sheet["row_count"] == 267
+    assert sheet["column_count"] == 14
+    assert "收款行" in sheet["headers"]
+    assert "交易日期" in sheet["headers"]
+    preview_blob = " ".join(" ".join(str(c) for c in row) for row in sheet["preview"])
+    assert "顺德" in preview_blob
+    assert "青岛" not in preview_blob
 
 
 # ---------------------------------------------------------------------------
@@ -596,6 +612,18 @@ def test_all_guards_consistently_enforce_workspace_sandbox() -> None:
     assert chunk["chunks"] == []
     assert "越界" in chunk["message"] or "outside" in chunk["message"]
 
+    described = describe_workbook(str(outside))
+    assert described["ok"] is False
+    assert described["issue"] == "path_denied"
+    assert "越界" in described["message"] or "outside" in described["message"]
+    assert outside.name not in described["message"]
+
+    markdown = sheet_to_markdown(str(outside), start_row=1, end_row=2)
+    assert markdown["ok"] is False
+    assert markdown["issue"] == "path_denied"
+    assert "越界" in markdown["message"] or "outside" in markdown["message"]
+    assert outside.name not in markdown["message"]
+
 
 @pytest.mark.parametrize("extension", [".xlsm", ".xltx"])
 def test_macro_and_template_extensions_accepted(
@@ -620,3 +648,149 @@ def test_server_module_imports() -> None:
 
     assert mcp is not None
     assert getattr(mcp, "name", None) or True
+
+
+# ---------------------------------------------------------------------------
+# describe_workbook / sheet_to_markdown
+# ---------------------------------------------------------------------------
+
+
+def _write_ledger(path: Path) -> Path:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "顺德收支"
+    ws.append(["交易日期", "金额", "收款行"])
+    ws.append(["20260609", 4156.51, "顺德银行容桂支行"])
+    ws.append(["20260610", 200.0, "OUTRANGE_TOKEN_BBB"])
+    ws.append(["20260611", 300.0, "DEEP_TOKEN_CCC"])
+    extra = wb.create_sheet("网点清单")
+    extra.append(["网点", "城市"])
+    extra.append(["容桂", "顺德"])
+    wb.save(path)
+    return path
+
+
+def test_describe_workbook_returns_real_sheet_structure(tmp_path: Path) -> None:
+    book = _write_ledger(tmp_path / "shunde_ledger.xlsx")
+
+    result = describe_workbook(str(book), preview_rows=1)
+
+    assert result["ok"] is True
+    assert result.get("issue") in {"", None}
+    sheets = {s["name"]: s for s in result["sheets"]}
+    assert set(sheets) == {"顺德收支", "网点清单"}
+    detail = sheets["顺德收支"]
+    assert detail["row_count"] == 4
+    assert detail["column_count"] == 3
+    assert detail["headers"] == ["交易日期", "金额", "收款行"]
+    preview_blob = " ".join(
+        " ".join(str(c) for c in row) for row in detail["preview"]
+    )
+    assert "顺德银行容桂支行" in preview_blob
+    assert "交易日期" in preview_blob
+    # preview_rows=1 → header + first data row only
+    assert "OUTRANGE_TOKEN_BBB" not in preview_blob
+    assert "DEEP_TOKEN_CCC" not in preview_blob
+    branch = sheets["网点清单"]
+    assert branch["headers"] == ["网点", "城市"]
+    assert branch["row_count"] == 2
+
+
+def test_sheet_to_markdown_keeps_header_and_only_in_range_rows(
+    tmp_path: Path,
+) -> None:
+    book = _write_ledger(tmp_path / "range.xlsx")
+
+    result = sheet_to_markdown(
+        str(book), sheet="顺德收支", start_row=2, end_row=2
+    )
+
+    assert result["ok"] is True
+    md = result["markdown"]
+    assert result["sheet"] == "顺德收支"
+    assert "交易日期" in md
+    assert "收款行" in md
+    assert "顺德银行容桂支行" in md
+    assert "OUTRANGE_TOKEN_BBB" not in md
+    assert "DEEP_TOKEN_CCC" not in md
+    assert md.strip().startswith("|")
+
+
+def test_sheet_to_markdown_exports_small_sheet_in_one_shot(tmp_path: Path) -> None:
+    book = _write_ledger(tmp_path / "full.xlsx")
+
+    result = sheet_to_markdown(str(book), sheet="网点清单")
+
+    assert result["ok"] is True
+    assert "容桂" in result["markdown"]
+    assert "顺德" in result["markdown"]
+    assert "网点" in result["markdown"]
+
+
+def test_describe_and_markdown_deny_outside_path_without_leaking_name(
+    tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    secret_dir = tmp_path_factory.mktemp("outside-describe")
+    secret = secret_dir / "secret_ledger_outside.xlsx"
+    wb = Workbook()
+    wb.active.title = "SecretSheet"
+    wb.active.append(["hidden_col"])
+    wb.active.append(["SHOULD_NOT_LEAK"])
+    wb.save(secret)
+
+    described = describe_workbook(str(secret))
+    assert described["ok"] is False
+    assert described["issue"] == "path_denied"
+    assert described.get("sheets") in ([], None) or described["sheets"] == []
+    assert "secret_ledger_outside" not in described["message"]
+    assert "SHOULD_NOT_LEAK" not in described["message"]
+    assert "SecretSheet" not in described["message"]
+
+    markdown = sheet_to_markdown(str(secret), start_row=1, end_row=2)
+    assert markdown["ok"] is False
+    assert markdown["issue"] == "path_denied"
+    assert not (markdown.get("markdown") or "").strip()
+    assert "secret_ledger_outside" not in markdown["message"]
+    assert "SHOULD_NOT_LEAK" not in markdown["message"]
+
+
+def test_describe_workbook_missing_file(tmp_path: Path) -> None:
+    missing = tmp_path / "absent.xlsx"
+    result = describe_workbook(str(missing))
+    assert result["ok"] is False
+    assert result["issue"] == "missing"
+    assert "不存在" in result["message"] or "not found" in result["message"].lower()
+
+
+def test_describe_csv_uses_header_and_preview(tmp_path: Path) -> None:
+    csv_path = tmp_path / "branch.csv"
+    csv_path.write_text(
+        "网点,城市\n容桂,顺德\n李沧,青岛\n",
+        encoding="utf-8",
+    )
+
+    result = describe_workbook(str(csv_path), preview_rows=1)
+
+    assert result["ok"] is True
+    sheet = result["sheets"][0]
+    assert sheet["name"] == "branch"
+    assert sheet["headers"] == ["网点", "城市"]
+    assert sheet["row_count"] == 3
+    blob = " ".join(" ".join(row) for row in sheet["preview"])
+    assert "容桂" in blob
+    assert "李沧" not in blob
+
+
+def test_sheet_to_markdown_csv_range(tmp_path: Path) -> None:
+    csv_path = tmp_path / "tx.csv"
+    csv_path.write_text(
+        "id,note\n1,INRANGE_TOKEN_AAA\n2,OUTRANGE_TOKEN_BBB\n",
+        encoding="utf-8",
+    )
+
+    result = sheet_to_markdown(str(csv_path), start_row=2, end_row=2)
+
+    assert result["ok"] is True
+    assert "INRANGE_TOKEN_AAA" in result["markdown"]
+    assert "id" in result["markdown"]
+    assert "OUTRANGE_TOKEN_BBB" not in result["markdown"]

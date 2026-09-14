@@ -31,6 +31,8 @@ EXPECTED_TOOLS = {
     "detect_corrupt_workbook",
     "detect_encoding",
     "chunk_large_workbook",
+    "describe_workbook",
+    "sheet_to_markdown",
 }
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -93,11 +95,19 @@ def _call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def test_server_registers_exactly_three_tools() -> None:
+def test_server_registers_exactly_five_tools() -> None:
     tools = _list_tools()
 
-    assert len(tools) == 3
+    assert len(tools) == 5
     assert set(tools) == EXPECTED_TOOLS
+
+
+def test_mcp_describe_markdown_are_readers_callables() -> None:
+    from poc.excel_guard_mcp import readers, server
+
+    assert server._describe_workbook is readers.describe_workbook
+    assert server._sheet_to_markdown is readers.sheet_to_markdown
+    assert "audit_workbook" not in _list_tools()
 
 
 def test_server_name_is_excel_guard() -> None:
@@ -110,6 +120,8 @@ def test_server_name_is_excel_guard() -> None:
         ("detect_corrupt_workbook", "corrupt"),
         ("detect_encoding", "encoding"),
         ("chunk_large_workbook", "chunk"),
+        ("describe_workbook", "sheet"),
+        ("sheet_to_markdown", "markdown"),
     ],
 )
 def test_registered_tools_have_descriptions(tool_name: str, keyword: str) -> None:
@@ -252,6 +264,22 @@ def test_mcp_chunk_large_workbook_uses_default_max_rows(tmp_path: Path) -> None:
                 "路径越界" in p["message"],
             ],
         ),
+        (
+            "describe_workbook",
+            lambda p: [
+                p["ok"] is False,
+                p["issue"] == "path_denied",
+                "路径越界" in p["message"],
+            ],
+        ),
+        (
+            "sheet_to_markdown",
+            lambda p: [
+                p["ok"] is False,
+                p["issue"] == "path_denied",
+                "路径越界" in p["message"],
+            ],
+        ),
     ],
 )
 def test_mcp_tools_deny_paths_outside_workspace(
@@ -261,6 +289,8 @@ def test_mcp_tools_deny_paths_outside_workspace(
 
     for check in checks(payload):
         assert check
+    if tool_name in {"describe_workbook", "sheet_to_markdown"}:
+        assert Path(outside_workspace_file).name not in payload["message"]
 
 
 def test_mcp_detect_corrupt_reports_missing_file(tmp_path: Path) -> None:
@@ -410,6 +440,48 @@ def test_mcp_detect_encoding_high_confidence_non_utf8(tmp_path: Path) -> None:
 def test_mcp_call_unknown_tool_raises() -> None:
     with pytest.raises(Exception, match="Unknown tool"):
         _call_tool("does_not_exist", {"path": "x"})
+
+
+def test_mcp_describe_workbook_returns_real_structure(tmp_path: Path) -> None:
+    book = tmp_path / "shunde.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "顺德收支"
+    ws.append(["交易日期", "金额", "收款行"])
+    ws.append(["20260609", 4156.51, "顺德银行容桂支行"])
+    wb.save(book)
+
+    payload = _call_tool("describe_workbook", {"path": str(book)})
+
+    assert payload["ok"] is True
+    sheet = payload["sheets"][0]
+    assert sheet["name"] == "顺德收支"
+    assert sheet["row_count"] == 2
+    assert sheet["column_count"] == 3
+    assert sheet["headers"] == ["交易日期", "金额", "收款行"]
+    preview = " ".join(" ".join(str(c) for c in row) for row in sheet["preview"])
+    assert "顺德银行容桂支行" in preview
+
+
+def test_mcp_sheet_to_markdown_range_excludes_outside_rows(tmp_path: Path) -> None:
+    book = tmp_path / "range.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "明细"
+    ws.append(["交易日期", "金额", "备注"])
+    ws.append(["20260101", 10, "INRANGE_TOKEN_AAA"])
+    ws.append(["20260102", 20, "OUTRANGE_TOKEN_BBB"])
+    wb.save(book)
+
+    payload = _call_tool(
+        "sheet_to_markdown",
+        {"path": str(book), "sheet": "明细", "start_row": 2, "end_row": 2},
+    )
+
+    assert payload["ok"] is True
+    assert "INRANGE_TOKEN_AAA" in payload["markdown"]
+    assert "交易日期" in payload["markdown"]
+    assert "OUTRANGE_TOKEN_BBB" not in payload["markdown"]
 
 
 # ---------------------------------------------------------------------------
