@@ -172,6 +172,7 @@ MaaS 形态参考（无密钥）：
 | 文档 | 用途 |
 |------|------|
 | 本文 `docs/HANDOFF.md` | **开发侧**交接总览与接手步骤（48 小时动作、密钥约定） |
+| **`docs/HOOK交接文档.md`** | **场景③ HOOK 专题**：内核原有 Hook、JSONL 非数据库、安装与演示 |
 | **`docs/最终验收交接文档.md`** | **行方侧**验收（演示 + 打分 + 签字）；与本文并存 |
 | **`docs/HANDOFF_FOR_AI.md`** | **交给下一个开发 AI：30 秒开工、任务卡 A～E、红线、踩坑记录** |
 | `docs/qwenpaw-poc-modification-evaluation.md` | 源码扩展点、怎么改 |
