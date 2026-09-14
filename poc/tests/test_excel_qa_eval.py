@@ -22,7 +22,7 @@ def test_build_qa_fixture_writes_files_and_manifest(tmp_path: Path) -> None:
     built = build_qa_fixture(tmp_path)
 
     assert built["version"] == "1.0"
-    assert len(built["questions"]) == 13
+    assert len(built["questions"]) == 14
     write_ids = {q["id"] for q in built["questions"] if q["check"] == "write"}
     assert write_ids == {
         "q11_write_profit_column",
@@ -81,7 +81,7 @@ def test_score_answers_perfect_golden_scores_one(tmp_path: Path) -> None:
     report = score_answers(questions, answers)
 
     assert report["accuracy"] == 1.0
-    assert report["correct"] == report["n"] == 13
+    assert report["correct"] == report["n"] == 14
     assert report["failed"] == []
 
 
@@ -178,3 +178,19 @@ def test_preflight_single_call_covers_three_guards(tmp_path: Path) -> None:
     assert result["encoding"]["encoding"].lower().startswith("latin") or \
         result["encoding"]["encoding"] == "windows-1252"
     assert result["chunking"]["needs_chunking"] is False
+
+
+def test_route_question_expected_derivable_from_files(tmp_path: Path) -> None:
+    """q14 的黄金答案必须能从落盘文件独立验证：部门信息确在网点名单.csv。"""
+    import pandas as pd
+
+    build_qa_fixture(tmp_path)
+    route_q = next(q for q in golden_questions() if q["id"] == "q14_route_staff_file")
+
+    staff = pd.read_csv(tmp_path / route_q["expected"], encoding="gbk")
+    assert "部门" in staff.columns and "姓名" in staff.columns
+
+    # 其他文件不得同样含部门信息，否则答案不唯一
+    sales = pd.read_excel(tmp_path / "销售明细.xlsx")
+    assert "部门" not in sales.columns
+    assert "部门" not in pd.read_excel(tmp_path / "公式列.xlsx").columns

@@ -277,6 +277,17 @@ def golden_questions() -> list[dict[str, Any]]:
             "expected": "输出 xlsx 与 CSV 内容一致且中文正常",
             "check": "write",
         },
+        {
+            "id": "q14_route_staff_file",
+            "file": "",
+            "sheet": "",
+            "question": (
+                "这批文件里哪一份包含员工部门信息？"
+                "（多文件场景：先检索定位，answers 里只填文件名，如 xx.csv）"
+            ),
+            "expected": "网点名单.csv",
+            "check": "text",
+        },
     ]
 
 
