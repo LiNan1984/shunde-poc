@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 920" width="1280" height="920"
+     data-diagram-type="architecture" data-style="1">
+  <style>
+    text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; }
+  </style>
+  <defs>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#16a34a"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ea580c"/>
+    </marker>
+  </defs>
+  <rect width="1280" height="920" fill="#ffffff" data-graph-role="background"/>
+  <text x="640" y="36" text-anchor="middle" fill="#111827" font-size="22" font-weight="600">顺德农商行 POC 完成情况架构</text>
+  <text x="640" y="58" text-anchor="middle" fill="#6b7280" font-size="13">2026-09-14 · 六场景代码+单测已齐（273 passed）· Console 挂载与行方活路仍待现场</text>
+  <rect x="40" y="80" width="880" height="112" rx="12" fill="none" stroke="#fdba74" stroke-width="1.5" stroke-dasharray="6 5" data-graph-role="container"/>
+  <text x="56" y="100" fill="#ea580c" font-size="13" font-weight="600">现场入口 · 未完成挂载</text>
+  <rect x="40" y="216" width="880" height="96" rx="12" fill="none" stroke="#93c5fd" stroke-width="1.5" stroke-dasharray="6 5" data-graph-role="container"/>
+  <text x="56" y="236" fill="#2563eb" font-size="13" font-weight="600">QwenPaw v2.0.0 内核 · 红线 2：0 行改动</text>
+  <rect x="40" y="336" width="880" height="268" rx="12" fill="none" stroke="#86efac" stroke-width="1.5" stroke-dasharray="6 5" data-graph-role="container"/>
+  <text x="56" y="356" fill="#16a34a" font-size="13" font-weight="600">旁路扩展 poc/ · 六场景代码已交付</text>
+  <rect x="40" y="628" width="880" height="140" rx="12" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-dasharray="6 5" data-graph-role="container"/>
+  <text x="56" y="648" fill="#6b7280" font-size="13" font-weight="600">知识库存储端口 · 同一套函数，活路未接通则 fallback</text>
+  <rect x="944" y="80" width="296" height="688" rx="12" fill="#fff7ed" stroke="#fdba74" stroke-width="1.5" data-graph-role="container"/>
+  <text x="960" y="104" fill="#c2410c" font-size="14" font-weight="600">还差什么（现场 / 行方）</text>
+  <text x="960" y="122" fill="#9a3412" font-size="11">代码闸门已过，下列不能用本机单测代替</text>
+  <g id="judge" data-graph-role="node">
+    <rect x="56" y="112" width="200" height="64" rx="8" fill="#fff7ed" stroke="#fdba74" stroke-width="1.5"/>
+    <text x="156.0" y="140" text-anchor="middle" fill="#111827" font-size="14" font-weight="600">评委 / 演示员</text>
+    <text x="156.0" y="162" text-anchor="middle" fill="#6b7280" font-size="12">现场对话入口</text>
+  </g>
+  <g id="console" data-graph-role="node">
+    <rect x="304" y="112" width="272" height="64" rx="8" fill="#fff7ed" stroke="#fdba74" stroke-width="1.5"/>
+    <text x="440.0" y="140" text-anchor="middle" fill="#111827" font-size="14" font-weight="600">QwenPaw Console GUI</text>
+    <text x="440.0" y="162" text-anchor="middle" fill="#6b7280" font-size="12">尚未人工挂载 MCP/Skill</text>
+  </g>
+  <g id="model" data-graph-role="node">
+    <rect x="620" y="112" width="280" height="64" rx="8" fill="#fff7ed" stroke="#fdba74" stroke-width="1.5"/>
+    <text x="760.0" y="140" text-anchor="middle" fill="#111827" font-size="14" font-weight="600">行方模型口径</text>
+    <text x="760.0" y="162" text-anchor="middle" fill="#6b7280" font-size="12">需 Qwen3.6-35B / 27B</text>
+  </g>
+  <g id="kernel" data-graph-role="node">
+    <rect x="56" y="248" width="848" height="48" rx="8" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+    <text x="480.0" y="276" text-anchor="middle" fill="#111827" font-size="14" font-weight="600">Agent Runtime  ·  Skill Pool  ·  MCP Host  ·  Plugin API</text>
+    <text x="480.0" y="298" text-anchor="middle" fill="#6b7280" font-size="12">扩展只进 poc/ ，git diff QwenPaw/ 为空</text>
+  </g>
+  <g id="s1" data-graph-role="node">
+    <rect x="56" y="372" width="272" height="88" rx="8" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+    <text x="192.0" y="400" text-anchor="middle" fill="#111827" font-size="14" font-weight="600">1. Excel 问答  已完成</text>
+    <text x="192.0" y="422" text-anchor="middle" fill="#6b7280" font-size="12">excel-guard 3 工具 + excel-qa-bank</text>
+  </g>
+  <g id="s2" data-graph-role="node">
+    <rect x="348" y="372" width="272" height="88" rx="8" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+    <text x="484.0" y="400" text-anchor="middle" fill="#111827" font-size="14" font-weight="600">2. 多模态知识库  夹具完成</text>
+    <text x="484.0" y="422" text-anchor="middle" fill="#6b7280" font-size="12">kb-qa 4 工具 + kb-qa-bank</text>
+  </g>
+  <g id="s3" data-graph-role="node">
+    <rect x="640" y="372" width="272" height="88" rx="8" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+    <text x="776.0" y="400" text-anchor="middle" fill="#111827" font-size="14" font-weight="600">3. 运营助手  已完成</text>
+    <text x="776.0" y="422" text-anchor="middle" fill="#6b7280" font-size="12">ops-data + HOOK 四类埋点</text>
+  </g>
+  <g id="s4" data-graph-role="node">
+    <rect x="56" y="484" width="272" height="88" rx="8" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+    <text x="192.0" y="512" text-anchor="middle" fill="#111827" font-size="14" font-weight="600">4. 报告可视化  已完成</text>
+    <text x="192.0" y="534" text-anchor="middle" fill="#6b7280" font-size="12">7 工具 + docx 交叉表五类图</text>
+  </g>
+  <g id="s5" data-graph-role="node">
+    <rect x="348" y="484" width="272" height="88" rx="8" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+    <text x="484.0" y="512" text-anchor="middle" fill="#111827" font-size="14" font-weight="600">5. 后端部署  代码完成</text>
+    <text x="484.0" y="534" text-anchor="middle" fill="#6b7280" font-size="12">Dockerfile.poc + /api/poc/health</text>
+  </g>
+  <g id="s6" data-graph-role="node">
+    <rect x="640" y="484" width="272" height="88" rx="8" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+    <text x="776.0" y="512" text-anchor="middle" fill="#111827" font-size="14" font-weight="600">6. HARNESS  讲义完成</text>
+    <text x="776.0" y="534" text-anchor="middle" fill="#6b7280" font-size="12">压缩 / 记忆 / 沙箱三方案</text>
+  </g>
+  <g id="local" data-graph-role="node">
+    <rect x="56" y="664" width="400" height="80" rx="8" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+    <text x="256.0" y="692" text-anchor="middle" fill="#111827" font-size="14" font-weight="600">本地 fallback  已完成</text>
+    <text x="256.0" y="714" text-anchor="middle" fill="#6b7280" font-size="12">页图目录 + sqlite + 向量JSON + 本地图</text>
+  </g>
+  <g id="live" data-graph-role="node">
+    <rect x="500" y="664" width="400" height="80" rx="8" fill="#fff7ed" stroke="#fdba74" stroke-width="1.5"/>
+    <text x="700.0" y="692" text-anchor="middle" fill="#111827" font-size="14" font-weight="600">行方活路  未接通</text>
+    <text x="700.0" y="714" text-anchor="middle" fill="#6b7280" font-size="12">ES · MySQL · GALASYBASE · MinerU</text>
+  </g>
+  <g id="g1" data-graph-role="node">
+    <rect x="960" y="140" width="264" height="72" rx="8" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
+    <text x="976" y="168" fill="#c2410c" font-size="13" font-weight="600">1. Console GUI 挂载彩排</text>
+    <text x="976" y="190" fill="#78716c" font-size="11">导入 4 MCP + 4 Skill + 2 插件</text>
+  </g>
+  <g id="g2" data-graph-role="node">
+    <rect x="960" y="228" width="264" height="72" rx="8" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
+    <text x="976" y="256" fill="#c2410c" font-size="13" font-weight="600">2. Qwen3.6 模型对齐</text>
+    <text x="976" y="278" fill="#78716c" font-size="11">禁止继续用 qwen3.5 口径</text>
+  </g>
+  <g id="g3" data-graph-role="node">
+    <rect x="960" y="316" width="264" height="72" rx="8" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
+    <text x="976" y="344" fill="#c2410c" font-size="13" font-weight="600">3. ES / MySQL / GALASYBASE</text>
+    <text x="976" y="366" fill="#78716c" font-size="11">Docker daemon 本机未运行</text>
+  </g>
+  <g id="g4" data-graph-role="node">
+    <rect x="960" y="404" width="264" height="72" rx="8" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
+    <text x="976" y="432" fill="#c2410c" font-size="13" font-weight="600">4. MinerU / Embedding / Reranker</text>
+    <text x="976" y="454" fill="#78716c" font-size="11">无端点则禁止伪造成功</text>
+  </g>
+  <g id="g5" data-graph-role="node">
+    <rect x="960" y="492" width="264" height="72" rx="8" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
+    <text x="976" y="520" fill="#c2410c" font-size="13" font-weight="600">5. 行方 4+8+4+5 真题</text>
+    <text x="976" y="542" fill="#78716c" font-size="11">zip 无题面，夹具已 gating</text>
+  </g>
+  <g id="g6" data-graph-role="node">
+    <rect x="960" y="580" width="264" height="72" rx="8" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
+    <text x="976" y="608" fill="#c2410c" font-size="13" font-weight="600">6. 部署达标实测截图</text>
+    <text x="976" y="630" fill="#78716c" font-size="11">体积小于 500MB / health / 启动</text>
+  </g>
+  <g id="g7" data-graph-role="node">
+    <rect x="960" y="668" width="264" height="72" rx="8" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
+    <text x="976" y="696" fill="#c2410c" font-size="13" font-weight="600">7. 验收文档数字回填</text>
+    <text x="976" y="718" fill="#78716c" font-size="11">最终验收仍写 5/6 场景</text>
+  </g>
+  <path data-graph-role="edge" d="M 256,144 H 304" fill="none" stroke="#ea580c" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#arrow-orange)"/>
+  <text x="270" y="136" fill="#ea580c" font-size="11">现场</text>
+  <path data-graph-role="edge" d="M 440,176 V 216" fill="none" stroke="#ea580c" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#arrow-orange)"/>
+  <text x="448" y="202" fill="#ea580c" font-size="11">未挂载</text>
+  <path data-graph-role="edge" d="M 480,296 V 336" fill="none" stroke="#16a34a" stroke-width="2" marker-end="url(#arrow-green)"/>
+  <text x="488" y="320" fill="#16a34a" font-size="11">MCP / Skill / 插件</text>
+  <path data-graph-role="edge" d="M 348,416 H 336 V 628 H 256 V 664" fill="none" stroke="#16a34a" stroke-width="2" marker-end="url(#arrow-green)"/>
+  <text x="148" y="588" fill="#16a34a" font-size="11">夹具入库</text>
+  <path data-graph-role="edge" d="M 620,416 H 630 V 628 H 700 V 664" fill="none" stroke="#ea580c" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#arrow-orange)"/>
+  <text x="638" y="600" fill="#ea580c" font-size="11">活路待端点</text>
+  <g data-graph-role="legend" transform="translate(40, 788)">
+    <rect x="0" y="0" width="880" height="108" rx="10" fill="#f9fafb" stroke="#e5e7eb"/>
+    <text x="16" y="24" fill="#111827" font-size="13" font-weight="600">图例与完成口径</text>
+    <rect x="16" y="40" width="18" height="14" rx="3" fill="#f0fdf4" stroke="#86efac"/>
+    <text x="40" y="52" fill="#374151" font-size="12">已完成代码 + 单测</text>
+    <rect x="176" y="40" width="18" height="14" rx="3" fill="#fff7ed" stroke="#fdba74"/>
+    <text x="200" y="52" fill="#374151" font-size="12">现场 / 行方阻塞</text>
+    <rect x="336" y="40" width="18" height="14" rx="3" fill="#eff6ff" stroke="#93c5fd"/>
+    <text x="360" y="52" fill="#374151" font-size="12">QwenPaw 内核（不改）</text>
+    <line x1="16" y1="78" x2="56" y2="78" stroke="#16a34a" stroke-width="2" marker-end="url(#arrow-green)"/>
+    <text x="64" y="82" fill="#374151" font-size="12">已交付调用链</text>
+    <line x1="196" y1="78" x2="236" y2="78" stroke="#ea580c" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#arrow-orange)"/>
+    <text x="244" y="82" fill="#374151" font-size="12">待现场接通</text>
+    <text x="16" y="100" fill="#6b7280" font-size="11">stdio 烟测 4 MCP / 17 工具已绿；知识库夹具覆盖解析、三库 fallback、四类问答。真题与集群不在本机闸门内。</text>
+  </g>
+</svg>

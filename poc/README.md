@@ -1,6 +1,6 @@
 # 顺德农商行 POC（Phase 1）
 
-本目录为 QwenPaw **v2.0.0** 旁路扩展：**不 fork 核心**。Phase 1 提供 Excel 异常 MCP（`excel-guard`）与表格问答 Skill（`excel-qa-bank`）。
+本目录为 QwenPaw **v2.0.0** 旁路扩展：**不 fork 核心**。Phase 1 提供 Excel 异常 MCP（`excel-guard`）与表格问答 Skill（`excel-qa-bank`）。场景②多模态知识库见下方 Phase 5（`kb-qa` MCP + `kb-qa-bank` Skill）。
 
 详细实施计划：[`docs/superpowers/plans/2026-03-22-poc-phase1-excel-plan.md`](../docs/superpowers/plans/2026-03-22-poc-phase1-excel-plan.md)
 
@@ -132,6 +132,44 @@ docker run --rm -p 8080:8080 shunde-poc:dev
 - stdio 彩排：`python scripts/mcp_stdio_smoke.py`——以子进程方式 `python -m poc.excel_guard_mcp` 与 `python -m poc.report_mcp` 启动，对每路发送 JSON-RPC `initialize` 并校验响应，同时复用单元测试同款的 `mcp.list_tools()` 在进程内枚举，确认 3 + 7 工具齐全。
 - 单元测试自动化可达：193 passed, 1 skipped（基线 101 + 新增 92），`charts.py` 98%、`crosstab.py` 100%、`docx_gen.py` 89% 覆盖；详见 `pytest poc/tests --cov=poc/report_mcp --cov=poc/excel_guard_mcp --cov-report=term-missing`。
 - 仅人工可达（无法自动化）：Console GUI 的"创建 MCP + 下发 Skill + 智能体绑定"步骤——按上文 §导入 MCP / §挂载 Skill 在浏览器里点即可。
+
+---
+
+## Phase 5 — 多模态文件问答助手（知识库，用例 2-1 / 2-2）
+
+### 挂载 Skill（kb-qa-bank）
+
+Skill 目录：`poc/skills/kb-qa-bank/`（含 `SKILL.md`，含触发词 / 参数 / 返回值 / 边界）。挂载方式同 Phase 1。
+
+### 导入 MCP（kb-qa）
+
+配置样例：[`poc/config/mcp-kb-qa.json`](config/mcp-kb-qa.json)。
+
+1. 打开 QwenPaw Console → **智能体 → MCP**
+2. 粘贴 JSON 并将所有 `<REPO_ROOT>` 换成绝对路径
+3. `env.POC_WORKSPACE=<REPO_ROOT>`；可选接通 `ELASTICSEARCH_URL` / `MYSQL_URL` / `GALASYBASE_URL` / `MINERU_ENDPOINT`。未接通时同一套函数走本地 fallback（sqlite + 本地向量 + 本地图），测试与演示不依赖行方集群。
+4. **向量模型（推荐）**：把火山方舟 Coding Plan 的 Key 写进 `~/.qwenpaw.secret/embedding.env` 或 gitignored `.env`（**不要提交仓库**）：
+   `POC_EMBEDDING_URL=https://ark.cn-beijing.volces.com/api/coding/v3`
+   `POC_EMBEDDING_MODEL=doubao-embedding-vision`
+   `POC_EMBEDDING_API_KEY=...`
+   `POC_CHAT_MODEL=glm-5.3-flash`（可选：检索后用对话模型改写答案；向量质量只取决于 embedding，不取决于 glm）。
+   未配置 embedding 时仍用确定性哈希向量，单测不打外网。
+5. **MinerU（官方仓库已克隆到 `MinerU/`，gitignore）**：
+   ```bash
+   bash scripts/start_mineru_api.sh          # http://127.0.0.1:18000
+   export MINERU_ENDPOINT=http://127.0.0.1:18000
+   export MINERU_BACKEND=pipeline            # Mac / 无 NVIDIA；有 GPU 可改 hybrid-engine
+   ```
+   或不启服务、直接 CLI：`export MINERU_LOCAL=1`。首次解析会下载模型。未配置时仍用本地 pypdf/OCR 解析器。
+
+工具：`parse_document`、`ingest_document`、`search_knowledge`、`answer_knowledge`。
+
+```bash
+source .venv/bin/activate
+python -m poc.kb_mcp </dev/null          # stdio 遇 EOF 退出
+python scripts/mcp_stdio_smoke.py        # 含 kb-qa 连续两次 initialize + 夹具检索
+pytest poc/tests/test_kb_parse.py poc/tests/test_kb_store_retrieve.py poc/tests/test_kb_mcp_server.py -q
+```
 
 ### 任务 A 完成度核对
 

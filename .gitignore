@@ -22,6 +22,8 @@ venv/
 # Scratch / local only
 .scratch/
 *.log
+kb_store/
+**/kb_store/
 
 # Temp CSV staging dir used by scripts/append_proof_blocks.py
 .cache/
@@ -29,3 +31,4 @@ venv/
 
 # Upstream clone managed separately via gh (keep local; do not vendor)
 QwenPaw/
+MinerU/

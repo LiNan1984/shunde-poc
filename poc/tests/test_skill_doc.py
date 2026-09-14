@@ -14,6 +14,7 @@ SKILLS = [
     ("excel-qa-bank", {"detect_corrupt_workbook", "chunk_large_workbook"}),
     ("report-visualizer", {"pivot_table_tool", "render_bar_tool", "render_docx_report_tool"}),
     ("ops-assistant", {"summarize_calls_tool", "recent_events_tool", "list_telemetry_files_tool"}),
+    ("kb-qa-bank", {"ingest_document", "search_knowledge", "answer_knowledge"}),
 ]
 
 
@@ -83,3 +84,9 @@ def test_ops_skill_mentions_mcp_tools() -> None:
         "list_telemetry_files_tool",
     ):
         assert tool in body, f"ops-assistant SKILL.md missing tool mention: {tool}"
+
+
+def test_kb_skill_mentions_mcp_tools() -> None:
+    _, body = _load("kb-qa-bank")
+    for tool in ("parse_document", "ingest_document", "search_knowledge", "answer_knowledge"):
+        assert tool in body, f"kb-qa-bank SKILL.md missing tool mention: {tool}"

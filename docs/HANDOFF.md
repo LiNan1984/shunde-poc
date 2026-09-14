@@ -12,7 +12,7 @@
 
 ## 1. 一句话现状
 
-**评估与改造路径已写清；QwenPaw v2.0.0 已本地检出；Phase 1（Excel 异常 MCP + 问答 Skill）代码已落地并通过单测，但尚未挂到 QwenPaw Console 做现场演示。其余五大场景（知识库 / 运营 / 报告 / 部署 / HARNESS）未开发。缺口主因不是「数据埋点」。**
+**评估与改造路径已写清；QwenPaw v2.0.0 已本地检出；Phase 1～5 旁路代码（Excel / 报告 / 运营 / 部署 / HARNESS / 多模态知识库）已落地并通过单测，但尚未挂到 QwenPaw Console 做现场演示。知识库活路 ES/MySQL/GALASYBASE/MinerU 未接通时走本地 fallback。缺口主因不是「数据埋点」。**
 
 ---
 
@@ -116,10 +116,10 @@ git -C QwenPaw describe --tags --exact-match   # 期望输出：v2.0.0
 | ✅ P2 | 报告可视化 Skill + 7 工具收尾 | 覆盖率 charts 98% / crosstab 100% / docx_gen 89%；CSV 分块、一键 demo、stdio 彩排齐备 | 0 |
 | ✅ P3 | 运营助手 + HOOK 四类埋点 | `poc/ops_mcp/`（3 工具）+ `poc/hooks/ops_hooks.py`（6 HookBase 覆盖 5 个 Phase）+ `poc/plugins/ops-telemetry` 注册 | 0 |
 | ✅ P4 | Dockerfile 精简 + `GET /health` | `poc/deploy/Dockerfile.poc` multi-stage slim（无 XFCE/Chromium）；`poc/plugins/health/` 提供 `/api/poc/health` | 0 |
-| P5 | 多模态知识库（ES/MySQL/GALASYBASE/MinerU…） | 未开始（最大块，等行方端点） | 12～18 |
+| ✅ P5 | 多模态知识库（ES/MySQL/GALASYBASE/MinerU…） | `poc/kb_mcp/` + `kb-qa-bank` Skill；夹具四类题全绿；活路未接通走 fallback | 0 |
 | ✅ P6 | HARNESS 三方案讲义与调参演示 | `docs/harness/{01-context-compression,02-long-term-memory,03-sandbox}.md` | 0 |
 
-**总日历（仅剩 P5 阻塞 + 行方确认）：约 12～18 人·日阻塞任务 G，其余 A/B/C/D/E/F 全部完成。** 详见 gap-qa。
+**总日历：A/B/C/D/E/F/G（知识库代码+夹具测试）全部完成。** 行方 ES/MySQL/GALASYBASE/MinerU 活路与 Console GUI 彩排仍待现场环境。详见 gap-qa。
 
 ---
 
@@ -167,9 +167,12 @@ MaaS 形态参考（无密钥）：
 
 ## 8. 关键文档索引
 
+> **与行方验收文档的分工（两份并存，各管各的）**：本文 `docs/HANDOFF.md` 是**开发侧**交接（接手 48 小时动作、密钥约定、风险）；`docs/最终验收交接文档.md` 是**行方侧**验收（演示流程、打分速查、签字栏）。互不替代。
+
 | 文档 | 用途 |
 |------|------|
-| 本文 `docs/HANDOFF.md` | 交接总览与接手步骤 |
+| 本文 `docs/HANDOFF.md` | **开发侧**交接总览与接手步骤（48 小时动作、密钥约定） |
+| **`docs/最终验收交接文档.md`** | **行方侧**验收（演示 + 打分 + 签字）；与本文并存 |
 | **`docs/HANDOFF_FOR_AI.md`** | **交给下一个开发 AI：30 秒开工、任务卡 A～E、红线、踩坑记录** |
 | `docs/qwenpaw-poc-modification-evaluation.md` | 源码扩展点、怎么改 |
 | `docs/poc-completion-gap-qa.md` | 完成度、埋点结论、工期、24 条验收标准 |

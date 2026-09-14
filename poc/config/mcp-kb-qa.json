@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "kb-qa": {
+      "command": "<REPO_ROOT>/.venv/bin/python",
+      "args": ["-m", "poc.kb_mcp"],
+      "cwd": "<REPO_ROOT>",
+      "env": {
+        "POC_WORKSPACE": "<REPO_ROOT>",
+        "ELASTICSEARCH_URL": "",
+        "MYSQL_URL": "",
+        "GALASYBASE_URL": "",
+        "MINERU_ENDPOINT": "",
+        "POC_EMBEDDING_URL": "https://ark.cn-beijing.volces.com/api/coding/v3",
+        "POC_EMBEDDING_MODEL": "doubao-embedding-vision",
+        "POC_CHAT_MODEL": "glm-5.3-flash",
+        "POC_EMBEDDING_API_KEY": ""
+      }
+    }
+  }
+}

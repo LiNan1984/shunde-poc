@@ -1,0 +1,12 @@
+{
+  "id": "poc-ops-telemetry",
+  "version": "0.1.0",
+  "name": "POC Ops Telemetry",
+  "description": "Four-category JSONL hooks: call volume, tokens, tool outcome, latency, identity.",
+  "author": "shunde-poc",
+  "type": "hook",
+  "min_version": "2.0.0",
+  "qwenpaw_version": { "min": "2.0.0", "max": "3.0.0" },
+  "entry": { "backend": "plugin.py" },
+  "meta": { "hook_type": "runtime" }
+}

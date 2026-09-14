@@ -10,10 +10,26 @@ reaches their phase. Install with::
 from __future__ import annotations
 
 import logging
+import sys
+from pathlib import Path
 
 from qwenpaw.plugins.api import PluginApi  # type: ignore[import-not-found]
 
-from poc.hooks.ops_hooks import ALL_HOOKS
+
+def _bootstrap_poc() -> None:
+    """Keep ``poc.hooks`` importable after the plugin is copied into ~/.qwenpaw."""
+    here = Path(__file__).resolve()
+    candidates = [here.parents[2], Path("/Users/linan/Desktop/aicode/shunde")]
+    for cand in candidates:
+        if (cand / "poc" / "hooks" / "ops_hooks.py").is_file():
+            text = str(cand)
+            if text not in sys.path:
+                sys.path.insert(0, text)
+            return
+
+
+_bootstrap_poc()
+from poc.hooks.ops_hooks import ALL_HOOKS  # noqa: E402
 
 logger = logging.getLogger("poc.plugins.ops_telemetry")
 
@@ -30,3 +46,6 @@ class PocOpsTelemetryPlugin:
         logger.info(
             "POC ops telemetry plugin registered %d hooks", len(ALL_HOOKS)
         )
+
+
+plugin = PocOpsTelemetryPlugin()

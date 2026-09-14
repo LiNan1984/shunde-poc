@@ -41,6 +41,9 @@ class PocHealthPlugin:
         logger.info("POC health plugin registered at /api/poc/health")
 
 
+plugin = PocHealthPlugin()
+
+
 def main() -> None:
     """Dev entry: print the route table to confirm registration."""
     for r in router.routes:

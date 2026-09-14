@@ -233,8 +233,8 @@ def add_table_before(anchor: str, rows: list[list[str]]) -> None:
 def intro_text(label: str, code: str) -> str:
     return (
         f"用例 {code}（对应需求原文 §{label}）的完成证据与现场演示命令如下。"
-        f"仓库当前测试基线：pytest 225 passed, 1 skipped（基线 101 + 任务 "
-        f"A/B/C/D/E/F 新增 124）。本节直接挂在原评估指标表之后，"
+        f"仓库当前测试基线：pytest 273 passed, 1 skipped（含场景②知识库夹具）。"
+        f"本节直接挂在原评估指标表之后，"
         f"便于评委按需求原顺序查阅。"
     )
 
@@ -279,18 +279,27 @@ def proof_rows(code: str) -> list[list[str]]:
         )],
         "2-1": [(
             "ES / MySQL / GALASYBASE / MinerU 知识库搭建",
-            "⚠️ 被外部阻塞（任务 G）",
-            "docs/AI待办交接清单.md §三 G 章节；需求文档 §2.2 已确认端点规格"
-            "（ES + MySQL + GALASYBASE + MinerU2.5-Pro-2604-1.2B + "
-            "Qwen3-Embedding-8B + Qwen3-Reranker-0.6B）",
-            "依赖行方提供端点后才可演示；接口契约已写入 docs/HANDOFF.md §5",
+            "✅ 已完成代码+测试（活路未接通则 fallback）",
+            "poc/kb_mcp/{parse,ingest,stores,server}.py；"
+            "poc/skills/kb-qa-bank/SKILL.md；poc/config/mcp-kb-qa.json；"
+            "poc/tests/test_kb_parse.py + test_kb_store_retrieve.py。"
+            "活路名：ElasticSearch / MySQL / GALASYBASE / MinerU2.5-Pro-2604-1.2B；"
+            "本环境未接通这些端点时同一套入库函数走 sqlite+本地向量+本地图，"
+            "不伪造成功响应。",
+            "pytest poc/tests/test_kb_parse.py poc/tests/test_kb_store_retrieve.py -q；"
+            "python -m poc.kb_mcp </dev/null；"
+            "MINERU_ENDPOINT / ELASTICSEARCH_URL / MYSQL_URL / GALASYBASE_URL "
+            "有值才走活路",
         )],
         "2-2": [(
             "知识召回与多轮问答",
-            "⚠️ 被外部阻塞（任务 G）",
-            "同上；可复用 RemeLightMemoryManager 框架（docs/harness/"
-            "02-long-term-memory.md 已讲清架构）",
-            "等任务 G 端点接入后即可演示；本地已有框架调研文档",
+            "✅ 已完成代码+测试（夹具四类题）",
+            "poc/kb_mcp/retrieve.py（BM25+文本向量+图像向量+文档ID/章节/页码过滤+"
+            "邻块补召回）；poc/tests/test_kb_store_retrieve.py 四类问答；"
+            "MCP 工具 search_knowledge / answer_knowledge。"
+            "行方 4+8+4+5 真题未随 zip 下发，用夹具题 gating，真题走与 Excel 12 题相同替换 SOP。",
+            "python scripts/mcp_stdio_smoke.py  # kb-qa 连续两次 initialize + 夹具检索；"
+            "pytest poc/tests/test_kb_mcp_server.py -q",
         )],
         "3-1": [(
             "运营数据问答 + 数据分析",

@@ -1,0 +1,11 @@
+{
+  "id": "poc-health",
+  "version": "0.1.0",
+  "name": "POC Health Check",
+  "description": "GET /api/poc/health liveness probe.",
+  "author": "shunde-poc",
+  "type": "general",
+  "min_version": "2.0.0",
+  "qwenpaw_version": { "min": "2.0.0", "max": "3.0.0" },
+  "entry": { "backend": "plugin.py" }
+}
