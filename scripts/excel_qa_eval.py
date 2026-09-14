@@ -27,7 +27,11 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from poc.evals.qa_set import build_qa_fixture, golden_answers  # noqa: E402
+from poc.evals.qa_set import (  # noqa: E402
+    build_qa_fixture,
+    build_write_golden,
+    golden_answers,
+)
 from poc.evals.score import score_answers  # noqa: E402
 
 DEFAULT_DIR = REPO_ROOT / "poc" / "fixtures" / "qa_fixtures"
@@ -64,7 +68,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.self_test:
-        report = score_answers(built["questions"], golden_answers())
+        # golden read answers + golden write outputs: a perfect run scores 1.0
+        answers = golden_answers()
+        answers.update(build_write_golden(args.dir / "golden_outputs"))
+        report = score_answers(built["questions"], answers)
         source = "golden (self-test)"
     else:
         answers = json.loads(args.answers.read_text(encoding="utf-8"))

@@ -22,7 +22,13 @@ def test_build_qa_fixture_writes_files_and_manifest(tmp_path: Path) -> None:
     built = build_qa_fixture(tmp_path)
 
     assert built["version"] == "1.0"
-    assert len(built["questions"]) == 10
+    assert len(built["questions"]) == 13
+    write_ids = {q["id"] for q in built["questions"] if q["check"] == "write"}
+    assert write_ids == {
+        "q11_write_profit_column",
+        "q12_write_region_summary",
+        "q13_write_staff_xlsx",
+    }
     for name in built["files"]:
         assert (tmp_path / name).is_file()
     manifest = json.loads((tmp_path / "qa_golden.json").read_text(encoding="utf-8"))
@@ -65,18 +71,59 @@ def test_golden_answers_recomputable_from_written_files(tmp_path: Path) -> None:
     assert int((staff["部门"] == "零售部").sum()) == golden["q10_retail_headcount"]
 
 
-def test_score_answers_perfect_golden_scores_one() -> None:
-    questions = golden_questions()
+def test_score_answers_perfect_golden_scores_one(tmp_path: Path) -> None:
+    from poc.evals.qa_set import build_write_golden
 
-    report = score_answers(questions, golden_answers())
+    questions = golden_questions()
+    answers = golden_answers()
+    answers.update(build_write_golden(tmp_path / "golden_outputs"))
+
+    report = score_answers(questions, answers)
 
     assert report["accuracy"] == 1.0
-    assert report["correct"] == report["n"] == 10
+    assert report["correct"] == report["n"] == 13
     assert report["failed"] == []
 
 
+def test_score_answers_write_checks_verify_file_content(tmp_path: Path) -> None:
+    from openpyxl import Workbook, load_workbook
+
+    from poc.evals.qa_set import build_qa_fixture, build_write_golden
+
+    fixture_dir = tmp_path / "fixtures"
+    build_qa_fixture(fixture_dir)
+    golden = build_write_golden(tmp_path / "golden_outputs")
+    questions = [q for q in golden_questions() if q["check"] == "write"]
+
+    # golden outputs pass
+    report = score_answers(questions, golden)
+    assert report["accuracy"] == 1.0
+
+    # a tampered output fails with a concrete detail
+    tampered = tmp_path / "tampered.xlsx"
+    wb = load_workbook(golden["q11_write_profit_column"])
+    wb.active.cell(row=2, column=5, value=999.0)
+    wb.save(tampered)
+    report = score_answers(questions, {**golden, "q11_write_profit_column": str(tampered)})
+    failed = {f["id"]: f["got"] for f in report["failed"]}
+    assert set(failed) == {"q11_write_profit_column"}
+    assert "利润不符" in failed["q11_write_profit_column"]
+
+    # an empty workbook fails (missing 利润 column)
+    empty = tmp_path / "empty.xlsx"
+    Workbook().save(empty)
+    report = score_answers(questions, {**golden, "q11_write_profit_column": str(empty)})
+    assert {f["id"] for f in report["failed"]} == {"q11_write_profit_column"}
+
+    # unanswered write questions fail with got=None
+    partial = {k: v for k, v in golden.items() if k != "q13_write_staff_xlsx"}
+    report = score_answers(questions, partial)
+    assert {f["id"] for f in report["failed"]} == {"q13_write_staff_xlsx"}
+    assert report["failed"][0]["got"] is None
+
+
 def test_score_answers_flags_missing_and_wrong() -> None:
-    questions = golden_questions()
+    questions = [q for q in golden_questions() if q["check"] != "write"]
     answers = golden_answers()
     answers["q02_row_count"] = 999
     answers["q03_top_branch"] = "不存在的网点"
@@ -93,7 +140,7 @@ def test_score_answers_flags_missing_and_wrong() -> None:
 
 
 def test_score_answers_numeric_tolerates_noise() -> None:
-    questions = golden_questions()
+    questions = [q for q in golden_questions() if q["check"] != "write"]
     answers = golden_answers()
     answers["q01_shunde_total"] = f"{golden_answers()['q01_shunde_total']:,.2f} 元"
 

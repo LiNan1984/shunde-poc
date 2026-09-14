@@ -58,13 +58,13 @@ pytest poc/tests -v
 
 ## Excel 问答黄金回归集（poc/evals）
 
-10 条确定性问答对，覆盖干净明细、多级合并表头、未缓存公式列、GBK 编码 CSV 四类真实失败模式。期望值与工作簿出自同一份内存数据，并由测试独立用 pandas/openpyxl 从落盘文件重算验证（`poc/tests/test_excel_qa_eval.py`）。
+13 条确定性问答对——10 条读类（干净明细、多级合并表头、未缓存公式列、GBK 编码 CSV）+ 3 条写回类（追加利润列 / 按地区汇总写新表 / GBK CSV 转 xlsx，评分器直接打开 agent 输出文件校验内容）。期望值与工作簿出自同一份内存数据，并由测试独立用 pandas/openpyxl 从落盘文件重算验证（`poc/tests/test_excel_qa_eval.py`）。
 
 ```bash
 # 生成 fixtures（poc/fixtures/qa_fixtures/）并打印问题清单
 .venv/bin/python scripts/excel_qa_eval.py --build
 
-# agent 回答写入 answers.json（{question_id: value}）后评分
+# agent 回答写入 answers.json（读类 {question_id: value}；写类 {question_id: 输出文件路径}）后评分
 .venv/bin/python scripts/excel_qa_eval.py --answers answers.json
 
 # 自检：黄金答案必须 100%
@@ -73,7 +73,7 @@ pytest poc/tests -v
 
 改动 excel-qa / excel-guard 任何能力后跑一次评分，准确率变化即可量化，不靠主观判断。
 
-基线：按 skill 规定流程（`preflight_workbook` → `describe_workbook` → pandas 精算 → `audit_workbook`）执行为 **10/10 = 100%**（`poc/fixtures/qa_fixtures/baseline_answers.json`）。多级表头工作簿的表头投票正确落在第 3 行子表头，合并区域（A1:E1 / B2:C2 / A2:A3 / D2:E2）全部识别。
+基线：读类按 skill 规定流程（`preflight_workbook` → `describe_workbook` → pandas 精算 → `audit_workbook`）10/10，写回类 3/3（`poc/fixtures/qa_fixtures/baseline_answers.json`，含 `golden_outputs/` 黄金输出），合计 **13/13 = 100%**。多级表头工作簿的表头投票正确落在第 3 行子表头，合并区域（A1:E1 / B2:C2 / A2:A3 / D2:E2）全部识别。
 
 ---
 

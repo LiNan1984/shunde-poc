@@ -3,14 +3,17 @@
 
 Answers are {"<question_id>": value}. Numeric checks tolerate float noise
 and string answers that merely wrap a number ("12,000 元" counts); text
-checks are exact after strip. The scorer is deterministic and has no LLM
-in the loop, so accuracy numbers are comparable across runs.
+checks are exact after strip; write checks take the path of the file the
+agent produced and verify its content deterministically. The scorer has no
+LLM in the loop, so accuracy numbers are comparable across runs.
 """
 
 from __future__ import annotations
 
 import re
 from typing import Any
+
+from .qa_set import WRITE_VERIFIERS
 
 _NUM_RE = re.compile(r"-?\d[\d,]*(?:\.\d+)?")
 
@@ -42,6 +45,19 @@ def _check_text(expected: Any, got: Any) -> bool:
     return str(got).strip() == str(expected).strip()
 
 
+def _check_write(q: dict[str, Any], got: Any) -> tuple[bool, str]:
+    """Run the question's registered verifier against the produced file path."""
+    verifier = WRITE_VERIFIERS.get(q["id"])
+    if verifier is None:
+        return False, "no verifier registered"
+    if not isinstance(got, str) or not got.strip():
+        return False, "answer is not a file path"
+    try:
+        return verifier(got)
+    except Exception as exc:  # noqa: BLE001 — verifier crashes are failures
+        return False, f"verifier error: {type(exc).__name__}: {exc}"
+
+
 _CHECKERS = {"number": _check_number, "text": _check_text}
 
 
@@ -52,14 +68,31 @@ def score_answers(
     """Grade ``answers`` against the golden questions.
 
     Returns {"n", "correct", "accuracy", "failed": [{id, question, expected,
-    got}]}. Unanswered questions count as failures with got=None.
+    got}]}. Unanswered questions count as failures with got=None. For write
+    questions the answer is the output file path; ``got`` in a failed entry
+    carries the verifier detail (or None when unanswered).
     """
     failed: list[dict[str, Any]] = []
     correct = 0
     for q in questions:
         qid = q["id"]
         got = answers.get(qid)
-        checker = _CHECKERS.get(q.get("check") or "text", _check_text)
+        check = q.get("check") or "text"
+        if check == "write":
+            ok, detail = _check_write(q, got)
+            if ok:
+                correct += 1
+            else:
+                failed.append(
+                    {
+                        "id": qid,
+                        "question": q["question"],
+                        "expected": q["expected"],
+                        "got": detail if got is not None else None,
+                    }
+                )
+            continue
+        checker = _CHECKERS.get(check, _check_text)
         if got is not None and checker(q["expected"], got):
             correct += 1
         else:

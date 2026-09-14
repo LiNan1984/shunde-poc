@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "dir": "/Users/linan/Desktop/aicode/shunde/poc/fixtures/qa_fixtures",
+  "dir": "poc/fixtures/qa_fixtures",
   "questions": [
     {
       "id": "q01_shunde_total",
@@ -81,6 +81,30 @@
       "question": "零售部一共有多少人？（CSV 为 GBK 编码）",
       "expected": 12,
       "check": "number"
+    },
+    {
+      "id": "q11_write_profit_column",
+      "file": "公式列.xlsx",
+      "sheet": "收入计算",
+      "question": "在公式列.xlsx 基础上追加「利润」列（利润=收入*0.1，保留两位小数），写回为新文件并在 answers 里填输出文件路径。",
+      "expected": "输出文件含 利润 列且全部行 = 数量*单价*0.1",
+      "check": "write"
+    },
+    {
+      "id": "q12_write_region_summary",
+      "file": "销售明细.xlsx",
+      "sheet": "销售明细",
+      "question": "从销售明细.xlsx 生成按地区汇总表（列：地区、销售额），写回为新文件并在 answers 里填输出文件路径。",
+      "expected": "输出文件每个地区的销售额合计与源数据一致",
+      "check": "write"
+    },
+    {
+      "id": "q13_write_staff_xlsx",
+      "file": "网点名单.csv",
+      "sheet": "",
+      "question": "把网点名单.csv（GBK 编码）转存为 xlsx，中文不得乱码，写回为新文件并在 answers 里填输出文件路径。",
+      "expected": "输出 xlsx 与 CSV 内容一致且中文正常",
+      "check": "write"
     }
   ]
 }
