@@ -61,4 +61,5 @@ python -m poc.excel_guard_mcp
 | [poc/README.md](poc/README.md) | 扩展接入操作手册（Skill/MCP 挂载步骤） |
 | [docs/officecli助手池接入.md](docs/officecli助手池接入.md) | officecli 双通道接入（守卫 MCP 桥接 + 官方技能池） |
 | [docs/HOOK交接文档.md](docs/HOOK交接文档.md) | 运营埋点 Hook 专题 |
+| [docs/四助手演示测试案例.md](docs/四助手演示测试案例.md) | 每助手 5 条演示/回归测试案例（含黄金预期值） |
 | [docs/演示材料/](docs/演示材料/) | 四助手架构图、演示 PPT 与幻灯片源 |
