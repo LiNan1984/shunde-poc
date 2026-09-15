@@ -17,6 +17,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+      - name: Install CJK font (report charts resolve one; deploy image uses fonts-wqy-zenhei)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq fonts-wqy-zenhei
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
