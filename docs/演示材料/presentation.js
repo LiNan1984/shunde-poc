@@ -560,139 +560,12 @@ addArchSlide(
   "ops-data：列出埋点文件 · 汇总调用量 · 最近事件  ·  四类：调用量 / Token / 工具成败 / 耗时"
 );
 
-// ═══════════════════════════════════════════════════════
-// SLIDE 9 – Plugin vs Runtime vs JSONL
-// ═══════════════════════════════════════════════════════
-(function slide9() {
-  const s = pres.addSlide();
-  s.background = { color: C.white };
-  addContentHeader(s, "埋点形态：插件装进去，Runtime 相位里跑，落盘是 JSONL", 9);
-
-  const cards = [
-    {
-      k: "1  安装",
-      t: "插件形态",
-      v: "poc-ops-telemetry",
-      d: "plugin.json 写 type=hook、hook_type=runtime。qwenpaw plugin install 旁路装入，不改 QwenPaw/src。",
-    },
-    {
-      k: "2  执行",
-      t: "Runtime 形态",
-      v: "register_runtime_hook",
-      d: "6 个 HookBase 挂进 8 个相位。每次请求从 HookContext 内存取值，不读业务文件。",
-    },
-    {
-      k: "3  落盘",
-      t: "不是日志、不是库",
-      v: "ops.jsonl",
-      d: "telemetry.write 追加一行 JSON。失败只打 stderr。运营问答由 ops-data MCP 再读这个文件。",
-    },
-  ];
-  cards.forEach((c, i) => {
-    const x = 0.55 + i * 4.2;
-    s.addShape(pres.shapes.RECTANGLE, {
-      x,
-      y: 1.05,
-      w: 4.0,
-      h: 3.55,
-      fill: { color: C.offWhite },
-    });
-    s.addShape(pres.shapes.RECTANGLE, {
-      x,
-      y: 1.05,
-      w: 0.08,
-      h: 3.55,
-      fill: { color: i === 1 ? C.gold : C.navy },
-    });
-    s.addText(c.k, {
-      x: x + 0.28,
-      y: 1.22,
-      w: 3.55,
-      h: 0.32,
-      fontSize: 12,
-      fontFace: FONT,
-      color: C.gold,
-      bold: true,
-      margin: 0,
-    });
-    s.addText(c.t, {
-      x: x + 0.28,
-      y: 1.58,
-      w: 3.55,
-      h: 0.4,
-      fontSize: 16,
-      fontFace: FONT,
-      bold: true,
-      color: C.text,
-      margin: 0,
-    });
-    s.addText(c.v, {
-      x: x + 0.28,
-      y: 2.05,
-      w: 3.55,
-      h: 0.55,
-      fontSize: 18,
-      fontFace: FONT,
-      bold: true,
-      color: C.navy,
-      margin: 0,
-    });
-    s.addText(c.d, {
-      x: x + 0.28,
-      y: 2.7,
-      w: 3.55,
-      h: 1.6,
-      fontSize: 13,
-      fontFace: FONT,
-      color: C.textLight,
-      margin: 0,
-    });
-  });
-
-  s.addShape(pres.shapes.RECTANGLE, {
-    x: 0.55,
-    y: 4.8,
-    w: 12.2,
-    h: 1.9,
-    fill: { color: C.offWhite },
-  });
-  s.addShape(pres.shapes.RECTANGLE, {
-    x: 0.55,
-    y: 4.8,
-    w: 0.08,
-    h: 1.9,
-    fill: { color: C.gold },
-  });
-  s.addText("Hook 读什么 / 不读什么", {
-    x: 0.85,
-    y: 4.95,
-    w: 11.6,
-    h: 0.35,
-    fontSize: 15,
-    fontFace: FONT,
-    bold: true,
-    color: C.text,
-    margin: 0,
-  });
-  s.addText(
-    [
-      { text: "读：当次请求的 HookContext（session_id / agent_id / tokens_in / tool_name / error）。", options: { breakLine: true } },
-      { text: "写：<workspace>/telemetry/<UTC-日期>/ops.jsonl。没有 POC_WORKSPACE 则退到 QWENPAW_WORKING_DIR。", options: { breakLine: true } },
-      { text: "不读：Excel、知识库、MySQL、ES。不是 logging.info，也没有自研 HTTP 接口。", options: {} },
-    ],
-    {
-      x: 0.85,
-      y: 5.35,
-      w: 11.6,
-      h: 1.2,
-      fontSize: 13,
-      fontFace: FONT,
-      color: C.textLight,
-      margin: 0,
-    }
-  );
-  addSourceNote(s, "来源：poc/plugins/ops-telemetry/plugin.py  ·  poc/hooks/{ops_hooks,telemetry}.py  ·  PluginApi.register_runtime_hook");
-})();
+addArchSlide(
+  "埋点形态：插件装进去，Runtime 相位里跑，落盘是 JSONL",
+  "hook-plugin-runtime.png",
+  9,
+  "poc-ops-telemetry 一个插件注册 6 HookBase；市场看不到，已安装 Tab 才有"
+);
 
 // ═══════════════════════════════════════════════════════
 // SLIDE 10 – Why Hook is not in Plugin Market
@@ -1483,119 +1356,26 @@ addArchSlide(
   addSourceNote(s, "本机 http://127.0.0.1:5173/  ·  公网 https://shunde-poc.harness-agent.app/chat");
 })();
 
-// ═══════════════════════════════════════════════════════
-// SLIDE 21 – L1 L2 L3 chain
-// ═══════════════════════════════════════════════════════
-(function slideL123() {
-  const s = pres.addSlide();
-  s.background = { color: C.white };
-  addContentHeader(s, "L1 / L2 / L3：上下文渐进式工具加载", 21);
+addArchSlide(
+  "L1 / L2 / L3：skill列表摘要 → skill → mcp列表namespace前缀 → 详细mcp → 文件摘要 → 文件详情",
+  "l123-chain.png",
+  21,
+  "降低完成时间、提高准确率与效率；前缀一致性提高缓存命中率，省 token，提高 ROI"
+);
 
-  s.addText("skill列表摘要 → skill → mcp列表namespace前缀 → 详细mcp → 文件摘要 → 文件详情", {
-    x: 0.5,
-    y: 0.92,
-    w: 12.3,
-    h: 0.42,
-    fontSize: 14,
-    fontFace: FONT,
-    bold: true,
-    color: C.navy,
-    align: "center",
-    margin: 0,
-  });
+addArchSlide(
+  "前缀一致性提高缓存命中率，从而省 token、提高 ROI",
+  "prefix-cache-roi.png",
+  22,
+  "L1 skill列表摘要每轮相同；详细mcp / 文件摘要 / 文件详情后置。cache_read_tokens 记账，不编造命中百分比。"
+);
 
-  const levels = [
-    { k: "L1", t: "skill列表摘要", d: "YAML description 短目录。始终在上下文最前面，前缀不变，利于缓存命中率。" },
-    { k: "L2", t: "skill + mcp列表", d: "选中助手后才加载 skill 正文，再给带 namespace前缀 的 mcp列表（excel_guard__ / kb_qa__ / ops_data__ / report_visualizer__）。" },
-    { k: "L3", t: "详细mcp → 文件", d: "调用时才展开详细mcp 入参。文件摘要（describe / list / parse）之后才文件详情（markdown / 看图 / 事件 / docx）。" },
-  ];
-  levels.forEach((lv, i) => {
-    const x = 0.5 + i * 4.2;
-    s.addShape(pres.shapes.RECTANGLE, {
-      x, y: 1.5, w: 4.0, h: 3.55, fill: { color: C.offWhite },
-    });
-    s.addText(lv.k, {
-      x, y: 1.65, w: 4.0, h: 0.5,
-      fontSize: 22, fontFace: FONT, bold: true, color: C.gold, align: "center", margin: 0,
-    });
-    s.addText(lv.t, {
-      x: x + 0.2, y: 2.2, w: 3.6, h: 0.55,
-      fontSize: 16, fontFace: FONT, bold: true, color: C.text, align: "center", margin: 0,
-    });
-    s.addText(lv.d, {
-      x: x + 0.25, y: 2.9, w: 3.5, h: 1.9,
-      fontSize: 13, fontFace: FONT, color: C.textLight, margin: 0,
-    });
-  });
-
-  s.addText("同一套顺序同时降低任务完成时间、提高准确率与完成效率：模型先看见目录，再按需打开工具和文件，不把整表/整库灌进第一轮上下文。", {
-    x: 0.5, y: 5.25, w: 12.3, h: 1.5,
-    fontSize: 14, fontFace: FONT, color: C.text, margin: 0,
-  });
-  addSourceNote(s, "合同写在四个 SKILL.md「渐进加载合同」；MCP 配置声明 namespace。POC 不改 QwenPaw 内核。");
-})();
-
-// ═══════════════════════════════════════════════════════
-// SLIDE 22 – cache / prefix / ROI
-// ═══════════════════════════════════════════════════════
-(function slideRoi() {
-  const s = pres.addSlide();
-  s.background = { color: C.white };
-  addContentHeader(s, "前缀一致性提高缓存命中率，从而省 token、提高 ROI", 22);
-
-  const cards = [
-    { t: "缓存命中率", d: "L1 skill列表摘要每轮相同。宿主 2.2.2b1 用 cache_read_tokens / cache_hit_rate 记账。前缀稳定 → 更多 prompt 走缓存。" },
-    { t: "前缀一致性", d: "后置 skill 正文、mcp列表、详细mcp、文件摘要、文件详情。变的是后缀，不变的是前缀，KV cache 可复用。" },
-    { t: "token 经济型 ROI", d: "少灌 schema 和整文件，完成时间下降、准确率上升（先摘要再详情），单位任务 token 下降，ROI 提高。" },
-    { t: "完成时间 / 准确率", d: "不必每次重读 25 个工具全文。Excel 先描述表结构再读区间；知识库先检索再看图；运营先列 JSONL 再读事件。" },
-  ];
-  cards.forEach((c, i) => {
-    const col = i % 2;
-    const row = Math.floor(i / 2);
-    const x = 0.55 + col * 6.35;
-    const y = 1.05 + row * 2.7;
-    s.addShape(pres.shapes.RECTANGLE, { x, y, w: 6.15, h: 2.5, fill: { color: C.offWhite } });
-    s.addText(c.t, {
-      x: x + 0.3, y: y + 0.25, w: 5.55, h: 0.45,
-      fontSize: 18, fontFace: FONT, bold: true, color: C.navy, margin: 0,
-    });
-    s.addText(c.d, {
-      x: x + 0.3, y: y + 0.85, w: 5.55, h: 1.4,
-      fontSize: 14, fontFace: FONT, color: C.textLight, margin: 0,
-    });
-  });
-  addSourceNote(s, "机制对比，不编造线上命中百分比。字段见 QwenPaw token_usage.cache_read_tokens。");
-})();
-
-// ═══════════════════════════════════════════════════════
-// SLIDE 23 – 2.0.0 vs 2.2.2b1 Files
-// ═══════════════════════════════════════════════════════
-(function slideV2() {
-  const s = pres.addSlide();
-  s.background = { color: C.white };
-  addContentHeader(s, "新版本比 2.0.0 好：有缓存命中率，还有文件管理系统", 23);
-
-  s.addShape(pres.shapes.RECTANGLE, { x: 0.55, y: 1.05, w: 6.0, h: 5.5, fill: { color: C.offWhite } });
-  s.addText("QwenPaw 2.0.0", {
-    x: 0.8, y: 1.25, w: 5.5, h: 0.45,
-    fontSize: 20, fontFace: FONT, bold: true, color: C.red, margin: 0,
-  });
-  s.addText("操作像黑盒。没有 Files 页，生成的表格/报告/页图你看不见、不能下载。没有 cache_read_tokens，前缀即使用了也无从计量缓存命中率。助手在工作区里读写，评委只能看聊天窗口。", {
-    x: 0.8, y: 1.9, w: 5.5, h: 4.2,
-    fontSize: 16, fontFace: FONT, color: C.text, margin: 0,
-  });
-
-  s.addShape(pres.shapes.RECTANGLE, { x: 6.75, y: 1.05, w: 6.0, h: 5.5, fill: { color: C.offWhite } });
-  s.addText("QwenPaw 2.2.2b1", {
-    x: 7.0, y: 1.25, w: 5.5, h: 0.45,
-    fontSize: 20, fontFace: FONT, bold: true, color: C.green, margin: 0,
-  });
-  s.addText("Console Files 可查看、操作、生成并下载工作区文件。token 账本含 cache_read_tokens，能算缓存命中率。前缀一致性让 L1 目录复用缓存，省 token、提高 ROI。POC 仍不改内核，只对齐渐进加载合同。", {
-    x: 7.0, y: 1.9, w: 5.5, h: 4.2,
-    fontSize: 16, fontFace: FONT, color: C.text, margin: 0,
-  });
-  addSourceNote(s, "Files：console/src/pages/Files + files-workspace 下载按钮。2.0.0 无此页。");
-})();
+addArchSlide(
+  "新版本比 2.0.0 好：有缓存命中率，Files 可查看、操作、生成、下载；旧版是黑盒",
+  "files-vs-blackbox.png",
+  23,
+  "2.2.2b1 Console Files；2.0.0 没有 Files 页，只能看聊天窗口。"
+);
 
 addArchSlide(
   "Excel问答任务分布：skill列表摘要 → excel_guard__ → 文件摘要 → 文件详情",
