@@ -95,7 +95,9 @@ def test_table_csv_html_json_and_image_description(tmp_path: Path) -> None:
     desc = images[0]["image_description"] or ""
     assert desc.strip()
     assert images[0]["page"] >= 1
-    assert TOKENS["chart"] in desc.upper() or TOKENS["chart"] in (images[0].get("text") or "").upper()
+    if TESSERACT:
+        # 无 tesseract 时（CI）解析器优雅降级为 "EMBEDDED IMAGE ..."，无 OCR 文本可断言
+        assert TOKENS["chart"] in desc.upper() or TOKENS["chart"] in (images[0].get("text") or "").upper()
     shot = Path(images[0]["screenshot"] or images[0]["page_image"])
     assert shot.is_file()
 

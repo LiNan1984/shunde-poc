@@ -56,7 +56,11 @@ def _as_existing_dir(raw: Any) -> Path | None:
         return None
     if str(root) == os.sep:
         return None
-    if not root.is_dir():
+    try:
+        is_dir = root.is_dir()
+    except OSError:  # unreadable parent (e.g. /root on Linux CI) — treat as absent
+        return None
+    if not is_dir:
         return None
     return root
 
