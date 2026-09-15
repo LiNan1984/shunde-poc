@@ -77,6 +77,7 @@ Agent 工作流一律优先 MCP HTTP。
 
 ## 边界 / 注意
 
+- 全部 15 工具已于 2026-09-15 实测（含 wiki 五件套、doc_query 语义定位、multi_get 大文件自动跳转 get）。唯一限制：`doc_elements` 对 PDF 需云端配置（qmd 1.0.9 尚未开放），MD/结构化文件可用；PDF 里的表格用 `doc_read` 按页读（表格本身是 HTML 片段）。
 - `qmd search` 是纯 BM25（秒回，模型未下载时可用）；`query` 首次要下 ~2GB 模型（embeddinggemma + reranker + query-expansion，已在本机与 VPS 缓存）。
 - doc-* 命令只对**已索引集合内**的文件生效；未索引报 "File exists but is not indexed"。
 - 索引对文件名做归一化（如 `东吴证券_AI经济学…pdf` → `东吴证券-ai经济学…pdf`），以 `qmd ls` 结果为准。
