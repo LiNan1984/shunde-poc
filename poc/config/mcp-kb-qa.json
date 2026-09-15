@@ -4,6 +4,7 @@
       "command": "<REPO_ROOT>/.venv/bin/python",
       "args": ["-m", "poc.kb_mcp"],
       "cwd": "<REPO_ROOT>",
+      "namespace": "kb_qa",
       "env": {
         "POC_WORKSPACE": "<REPO_ROOT>",
         "ELASTICSEARCH_URL": "",

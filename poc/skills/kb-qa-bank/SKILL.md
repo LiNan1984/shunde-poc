@@ -1,11 +1,23 @@
 ---
 name: kb-qa-bank
-description: "当用户要对 PDF/扫描件/带表或带图的文档做知识库入库、检索、缺块召回或多模态问答时使用；Excel 只入库表头/样例用于定位文件。触发词：知识库、PDF问答、多模态文档、缺块召回、哪张表。先调用 kb-qa MCP 入库再检索。"
+description: "L1 skill列表摘要：PDF/扫描件多模态入库检索。触发词：知识库、PDF问答、缺块召回、哪张表。先 kb_qa__ mcp列表，文件摘要后再看图详情。"
 metadata:
   poc_version: "0.1"
 ---
 
 # kb-qa-bank
+
+## 渐进加载合同
+
+上下文按 **L1 / L2 / L3** 渐进式工具加载。顺序（字面）：
+
+skill列表摘要 → skill → mcp列表namespace前缀 → 详细mcp → 文件摘要 → 文件详情
+
+稳定前缀（L1 目录始终不变）提高缓存命中率，前缀一致性更省 token，提高 token 经济型 ROI。
+
+- **L1 skill列表摘要**：仅 YAML `description`。禁止把完整 MCP schema 预埋进摘要。
+- **L2 skill**：先读本正文，再读 **mcp列表**（**namespace前缀** `kb_qa__`）：`kb_qa__parse_document`、`kb_qa__ingest_document`、`kb_qa__ingest_spreadsheet`、`kb_qa__search_knowledge`、`kb_qa__answer_knowledge`、`kb_qa__analyze_page`。
+- **L3 详细mcp**：调用时再展开入参。**文件摘要** 用 `kb_qa__parse_document`、`kb_qa__search_knowledge`；**文件详情** 再用 `kb_qa__analyze_page` 看页图。
 
 顺德农商行 POC：多模态文件问答助手 Skill。通过 `kb-qa` MCP 完成文档解析、三库入库与混合检索，覆盖缺块漏块、表/图+页码章节、极简短句、概括性总体四类问答。
 

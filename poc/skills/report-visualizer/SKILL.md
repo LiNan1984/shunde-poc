@@ -1,11 +1,23 @@
 ---
 name: report-visualizer
-description: "当用户要求把数据或纯文字生成可视化报告（docx），或要求交叉表、柱状图、折线图、饼图、散点图、热力图时使用。触发词：报告生成、可视化报告、生成 docx、生成报告、交叉表、柱状图、折线图、饼图、散点图、热力图。先调用 report-visualizer MCP 渲染图表与交叉表，再调用 docx 工具组装报告。"
+description: "L1 skill列表摘要：交叉表+五类图生成 docx。触发词：报告生成、可视化报告、柱状图、热力图。先 report_visualizer__ mcp列表，表摘要后再报告文件详情。"
 metadata:
   poc_version: "0.1"
 ---
 
 # report-visualizer
+
+## 渐进加载合同
+
+上下文按 **L1 / L2 / L3** 渐进式工具加载。顺序（字面）：
+
+skill列表摘要 → skill → mcp列表namespace前缀 → 详细mcp → 文件摘要 → 文件详情
+
+稳定前缀（L1 目录始终不变）提高缓存命中率，前缀一致性更省 token，提高 token 经济型 ROI。
+
+- **L1 skill列表摘要**：仅 YAML `description`。禁止把完整 MCP schema 预埋进摘要。
+- **L2 skill**：先读本正文，再读 **mcp列表**（**namespace前缀** `report_visualizer__`）：`report_visualizer__pivot_table_tool`、`report_visualizer__render_bar_tool`、`report_visualizer__render_line_tool`、`report_visualizer__render_pie_tool`、`report_visualizer__render_scatter_tool`、`report_visualizer__render_heatmap_tool`、`report_visualizer__render_docx_report_tool`。
+- **L3 详细mcp**：调用时再展开入参。**文件摘要** 用 `report_visualizer__pivot_table_tool`；**文件详情** 再用 `report_visualizer__render_docx_report_tool` 落盘 docx。
 
 顺德农商行 POC：报告可视化助手 Skill。优先调用 `report-visualizer` MCP 完成交叉表与五类图表渲染，再基于 `python-docx` 组装 docx 报告。
 

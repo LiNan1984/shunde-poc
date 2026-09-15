@@ -4,6 +4,7 @@
       "command": "<REPO_ROOT>/.venv/bin/python",
       "args": ["-m", "poc.ops_mcp"],
       "cwd": "<REPO_ROOT>",
+      "namespace": "ops_data",
       "env": {
         "POC_WORKSPACE": "<REPO_ROOT>"
       }

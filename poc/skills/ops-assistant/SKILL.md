@@ -1,10 +1,6 @@
 ---
 name: ops-assistant
-description: |
-  通过四类埋点（调用量 / Token 用量 / 工具成败 / 用户会话 / 耗时）回答
-  运营问题，例如「今天调用最多的是哪个工具」「最近一次失败的工具调用是什么」。
-  数据源是 POC_WORKSPACE/telemetry 下的 JSONL 文件，由 ops-data MCP 提供。
-  当用户问起系统使用情况、运营指标、工具调用统计时触发。
+description: "L1 skill列表摘要：运营埋点问答。触发词：调用量、token 用量、哪个工具失败最多。先 ops_data__ mcp列表，文件摘要后再事件详情。"
 triggers:
   - "调用量"
   - "埋点"
@@ -35,6 +31,18 @@ edges:
 ---
 
 # ops-assistant
+
+## 渐进加载合同
+
+上下文按 **L1 / L2 / L3** 渐进式工具加载。顺序（字面）：
+
+skill列表摘要 → skill → mcp列表namespace前缀 → 详细mcp → 文件摘要 → 文件详情
+
+稳定前缀（L1 目录始终不变）提高缓存命中率，前缀一致性更省 token，提高 token 经济型 ROI。
+
+- **L1 skill列表摘要**：仅 YAML `description`。禁止把完整 MCP schema 预埋进摘要。
+- **L2 skill**：先读本正文，再读 **mcp列表**（**namespace前缀** `ops_data__`）：`ops_data__list_telemetry_files_tool`、`ops_data__summarize_calls_tool`、`ops_data__recent_events_tool`。
+- **L3 详细mcp**：调用时再展开入参。**文件摘要** 用 `ops_data__list_telemetry_files_tool`；**文件详情** 再用 `ops_data__recent_events_tool`。
 
 运营助手。始终通过 `ops-data` MCP 的三个工具拿数据：
 

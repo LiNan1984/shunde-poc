@@ -1,11 +1,23 @@
 ---
 name: excel-qa-bank
-description: "当用户上传或指定 Excel/CSV 并提出读取、查询、分析、写入类问题时使用。触发词：excel问答、表格分析、xlsx、csv查询。先调用 excel-guard MCP 检查损坏/编码/超大分块并 describe_workbook 预览结构，再 pandas 计算；不要把整表当 RAG 答案。"
+description: "L1 skill列表摘要：Excel/CSV 读查析写。触发词：excel问答、表格分析、xlsx、csv查询。先 excel_guard__ mcp列表，文件摘要后再文件详情，pandas 精算。"
 metadata:
   poc_version: "0.1"
 ---
 
 # excel-qa-bank
+
+## 渐进加载合同
+
+上下文按 **L1 / L2 / L3** 渐进式工具加载。顺序（字面）：
+
+skill列表摘要 → skill → mcp列表namespace前缀 → 详细mcp → 文件摘要 → 文件详情
+
+稳定前缀（L1 目录始终不变）提高缓存命中率，前缀一致性更省 token，提高 token 经济型 ROI。
+
+- **L1 skill列表摘要**：仅 YAML `description`。禁止把完整 MCP schema 预埋进摘要。
+- **L2 skill**：先读本正文，再读 **mcp列表**（**namespace前缀** `excel_guard__`）：`excel_guard__detect_corrupt_workbook`、`excel_guard__detect_encoding`、`excel_guard__chunk_large_workbook`、`excel_guard__describe_workbook`、`excel_guard__sheet_to_markdown`、`excel_guard__edit_workbook`、`excel_guard__inspect_workbook`、`excel_guard__validate_workbook`、`excel_guard__render_workbook`。
+- **L3 详细mcp**：调用时再展开入参。**文件摘要** 用 `excel_guard__describe_workbook`；**文件详情** 再用 `excel_guard__sheet_to_markdown`、`excel_guard__inspect_workbook`。
 
 顺德农商行 POC：Excel/CSV 问答助手 Skill。优先调用 `excel-guard` MCP 做异常检测，再基于 pandas / openpyxl 完成读、查、析、写。
 
