@@ -27,6 +27,20 @@ POC_SKILLS = (
     "report-visualizer",
 )
 
+OFFICECLI_SKILLS = (
+    "officecli",
+    "officecli-xlsx",
+    "officecli-docx",
+    "officecli-pptx",
+    "officecli-word-form",
+    "officecli-academic-paper",
+    "officecli-data-dashboard",
+    "officecli-financial-model",
+    "officecli-pitch-deck",
+    "morph-ppt",
+    "morph-ppt-3d",
+)
+
 ASSET_CHECKS: dict[str, tuple[str, ...]] = {
     "Excel文件处理": ("scripts/recalc.py", "scripts/office/pack.py"),
     "PPT文件处理": ("scripts/add_slide.py", "scripts/clean.py"),
@@ -83,3 +97,16 @@ def test_archived_zip_assets_landed(skill_name: str) -> None:
 def test_existing_poc_skills_still_present(skill_name: str) -> None:
     path = SKILLS_DIR / skill_name / "SKILL.md"
     assert path.is_file(), f"POC skill disappeared: {path}"
+
+
+@pytest.mark.parametrize("skill_name", OFFICECLI_SKILLS)
+def test_officecli_skill_md_exists(skill_name: str) -> None:
+    path = SKILLS_DIR / skill_name / "SKILL.md"
+    assert path.is_file(), f"missing {path}"
+
+
+@pytest.mark.parametrize("skill_name", OFFICECLI_SKILLS)
+def test_officecli_frontmatter_name_and_description(skill_name: str) -> None:
+    meta, _body, _path = _load_frontmatter(skill_name)
+    assert meta.get("name") == skill_name
+    assert str(meta.get("description") or "").strip()
