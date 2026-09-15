@@ -28,7 +28,7 @@
       <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#020617" flood-opacity="0.28"/>
     </filter>
     <style>
-    text { font-family: 'PingFang SC', 'Noto Sans CJK SC', 'Hiragino Sans GB', 'Microsoft YaHei', Helvetica, Arial, sans-serif; }
+    text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'Microsoft JhengHei', 'SimHei', sans-serif; }
     .title { font-size: 30px; font-weight: 700; fill: #111827; }
     .subtitle { font-size: 14px; font-weight: 500; fill: #6b7280; }
     .section { font-size: 13px; font-weight: 700; fill: #2563eb; letter-spacing: 1.4px; }
@@ -83,7 +83,7 @@
   <g id="node-memory" data-graph-role="node" data-node-id="memory" data-semantic-role="rect" data-motion-role="" data-motion-stage="" data-motion-order="" data-parent="" data-deployment-id="" data-topic-id="" data-span-id="" data-station-order="" data-status="" data-start-ms="" data-duration-ms="" data-parent-span="" data-graph-bounds="300,344,480,404">
   <rect x="300.0" y="344.0" width="180.0" height="60.0" rx="10.0" fill="#f0f9ff" stroke="#38bdf8" stroke-width="1.8"/>
   <text x="390.0" y="374.0" text-anchor="middle" class="node-title" font-size="18.0">excel-guard</text>
-  <text x="390.0" y="396.0" text-anchor="middle" class="node-sub">5 个 MCP 工具</text>
+  <text x="390.0" y="396.0" text-anchor="middle" class="node-sub">9 个 MCP 工具</text>
   </g>
   <g id="node-tools" data-graph-role="node" data-node-id="tools" data-semantic-role="rect" data-motion-role="" data-motion-stage="" data-motion-order="" data-parent="" data-deployment-id="" data-topic-id="" data-span-id="" data-station-order="" data-status="" data-start-ms="" data-duration-ms="" data-parent-span="" data-graph-bounds="560,344,740,404">
   <rect x="560.0" y="344.0" width="180.0" height="60.0" rx="10.0" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.8"/>
@@ -138,7 +138,7 @@
     <line data-graph-role="decoration" x1="556.0" y1="510.0" x2="586.0" y2="510.0" stroke="#ef4444" stroke-width="2.4" marker-end="url(#arrowG)"/>
     <text data-graph-role="decoration" x="596.0" y="514.0" class="legend">must_fix</text>
   </g>
-  <g id="footer" data-graph-role="reserved" data-graph-bounds="48,558,482,574">
-  <text x="48.0" y="570.0" class="footnote">poc/excel_guard_mcp · 损坏短路 · 编码识别 · 超大分块 · 表头投票 · 多文件定位走 kb-qa</text>
+  <g id="footer" data-graph-role="reserved" data-graph-bounds="48,558,531,574">
+  <text x="48.0" y="570.0" class="footnote">poc/excel_guard_mcp · 9 个 MCP：护栏 5 + 守卫写回 / 结构化读取 / OpenXML 校验 / 渲染成图</text>
   </g>
 </svg>

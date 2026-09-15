@@ -16,7 +16,7 @@
     { "id": "client", "kind": "rect", "x": 60, "y": 156, "width": 160, "height": 60, "label": "柜员提问", "sublabel": "xlsx / csv", "fill": "#f8fafc", "stroke": "#94a3b8", "flat": true },
     { "id": "gateway", "kind": "double_rect", "x": 300, "y": 156, "width": 180, "height": 60, "label": "QwenPaw", "sublabel": "Console 下拉", "fill": "#fffbeb", "stroke": "#f59e0b", "flat": true },
     { "id": "agent", "kind": "double_rect", "x": 560, "y": 156, "width": 180, "height": 60, "label": "excel-agent", "sublabel": "excel-qa-bank", "fill": "#faf5ff", "stroke": "#8b5cf6", "flat": true },
-    { "id": "memory", "kind": "rect", "x": 300, "y": 344, "width": 180, "height": 60, "label": "excel-guard", "sublabel": "5 个 MCP 工具", "fill": "#f0f9ff", "stroke": "#38bdf8", "flat": true },
+    { "id": "memory", "kind": "rect", "x": 300, "y": 344, "width": 180, "height": 60, "label": "excel-guard", "sublabel": "9 个 MCP 工具", "fill": "#f0f9ff", "stroke": "#38bdf8", "flat": true },
     { "id": "tools", "kind": "rect", "x": 560, "y": 344, "width": 180, "height": 60, "label": "pandas 精算", "sublabel": "openpyxl 写回", "fill": "#f0fdf4", "stroke": "#22c55e", "flat": true },
     { "id": "eval", "kind": "rect", "x": 790, "y": 344, "width": 110, "height": 60, "label": "自检", "sublabel": "黄金 10/10", "fill": "#fff1f2", "stroke": "#fb7185", "flat": true }
   ],
@@ -41,7 +41,7 @@
     { "flow": "data", "label": "写后审计" },
     { "flow": "feedback", "label": "must_fix" }
   ],
-  "footer": "poc/excel_guard_mcp · 损坏短路 · 编码识别 · 超大分块 · 表头投票 · 多文件定位走 kb-qa",
+  "footer": "poc/excel_guard_mcp · 9 个 MCP：护栏 5 + 守卫写回 / 结构化读取 / OpenXML 校验 / 渲染成图",
   "footer_x": 48,
   "footer_y": 570
 }

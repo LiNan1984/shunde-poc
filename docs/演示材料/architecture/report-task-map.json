@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "mode": "architecture",
+  "template_type": "architecture",
+  "style": 1,
+  "quality_profile": "showcase",
+  "width": 960,
+  "height": 600,
+  "title": "报告可视化任务分布",
+  "subtitle": "L1 摘要 → L2 skill / report_visualizer__ → L3 交叉表摘要再 docx 详情",
+  "containers": [
+    { "id": "control-plane", "x": 40, "y": 120, "width": 880, "height": 116, "label": "L1 / L2 稳定前缀" },
+    { "id": "execution-state", "x": 40, "y": 304, "width": 880, "height": 136, "label": "L3 按需展开" }
+  ],
+  "nodes": [
+    { "id": "client", "kind": "rect", "x": 60, "y": 148, "width": 200, "height": 64, "label": "要一份报告", "sublabel": "交叉表 + 五类图", "fill": "#f8fafc", "stroke": "#94a3b8", "flat": true },
+    { "id": "gateway", "kind": "double_rect", "x": 330, "y": 148, "width": 230, "height": 64, "label": "L1 skill列表摘要", "sublabel": "YAML description", "fill": "#fffbeb", "stroke": "#f59e0b", "flat": true },
+    { "id": "agent", "kind": "double_rect", "x": 640, "y": 148, "width": 230, "height": 64, "label": "L2 skill", "sublabel": "report_visualizer__", "fill": "#faf5ff", "stroke": "#8b5cf6", "flat": true },
+    { "id": "memory", "kind": "rect", "x": 60, "y": 340, "width": 200, "height": 64, "label": "详细mcp", "sublabel": "出图入参", "fill": "#f0f9ff", "stroke": "#38bdf8", "flat": true },
+    { "id": "tools", "kind": "rect", "x": 330, "y": 340, "width": 230, "height": 64, "label": "文件摘要", "sublabel": "pivot_table_tool", "fill": "#f0fdf4", "stroke": "#22c55e", "flat": true },
+    { "id": "eval", "kind": "rect", "x": 640, "y": 340, "width": 230, "height": 64, "label": "文件详情", "sublabel": "render_docx_report", "fill": "#fff1f2", "stroke": "#fb7185", "flat": true }
+  ],
+  "arrows": [
+    { "id": "request", "source": "client", "target": "gateway", "source_port": "right", "target_port": "left", "flow": "control", "label": "L1" },
+    { "id": "dispatch", "source": "gateway", "target": "agent", "source_port": "right", "target_port": "left", "flow": "control", "label": "L2" },
+    { "id": "augment", "source": "memory", "target": "tools", "source_port": "right", "target_port": "left", "flow": "read", "label": "摘要" },
+    { "id": "trace", "source": "tools", "target": "eval", "source_port": "right", "target_port": "left", "flow": "write", "label": "落盘" }
+  ],
+  "legend_orientation": "horizontal",
+  "legend_x": 48,
+  "legend_y": 510,
+  "legend_locked": true,
+  "legend": [
+    { "flow": "control", "label": "前缀稳定" },
+    { "flow": "read", "label": "文件摘要" },
+    { "flow": "write", "label": "文件详情" }
+  ],
+  "footer": "生成的 docx 在新版本 Files 页可查看 / 操作 / 生成 / 下载",
+  "footer_x": 48,
+  "footer_y": 570
+}

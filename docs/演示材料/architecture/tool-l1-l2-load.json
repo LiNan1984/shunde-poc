@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "mode": "architecture",
+  "template_type": "architecture",
+  "style": 1,
+  "quality_profile": "showcase",
+  "style_overrides": {
+    "font_family": "'PingFang SC', 'Noto Sans CJK SC', 'Hiragino Sans GB', 'Microsoft YaHei', Helvetica, Arial, sans-serif"
+  },
+  "width": 960,
+  "height": 600,
+  "title": "当前工具 L1 / L2 加载逻辑",
+  "subtitle": "Skill 只常驻描述 · MCP schema 会话即注入 · 写回仍走代码执行，无 officecli 包装",
+  "containers": [
+    {
+      "id": "l1-catalog",
+      "x": 40,
+      "y": 120,
+      "width": 880,
+      "height": 116,
+      "label": "L1 目录常驻"
+    },
+    {
+      "id": "l2-expand",
+      "x": 40,
+      "y": 304,
+      "width": 880,
+      "height": 136,
+      "label": "L2 触发展开"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "skill-l1",
+      "kind": "rect",
+      "x": 120,
+      "y": 156,
+      "width": 200,
+      "height": 60,
+      "label": "Skill 目录",
+      "sublabel": "excel-qa-bank 描述",
+      "fill": "#faf5ff",
+      "stroke": "#8b5cf6",
+      "flat": true
+    },
+    {
+      "id": "mcp-l1",
+      "kind": "double_rect",
+      "x": 400,
+      "y": 156,
+      "width": 200,
+      "height": 60,
+      "label": "MCP 工具表",
+      "sublabel": "5 个 schema 全量注入",
+      "fill": "#f0f9ff",
+      "stroke": "#38bdf8",
+      "flat": true
+    },
+    {
+      "id": "cli-l1",
+      "kind": "rect",
+      "x": 680,
+      "y": 156,
+      "width": 200,
+      "height": 60,
+      "label": "Bash 槽位",
+      "sublabel": "无 officecli 包装",
+      "fill": "#f8fafc",
+      "stroke": "#94a3b8",
+      "flat": true
+    },
+    {
+      "id": "skill-l2",
+      "kind": "rect",
+      "x": 120,
+      "y": 344,
+      "width": 200,
+      "height": 60,
+      "label": "读 SKILL.md",
+      "sublabel": "顺序 · 禁区 · 闸门",
+      "fill": "#f5f3ff",
+      "stroke": "#7c3aed",
+      "flat": true
+    },
+    {
+      "id": "mcp-l2",
+      "kind": "double_rect",
+      "x": 400,
+      "y": 344,
+      "width": 200,
+      "height": 60,
+      "label": "调用 excel-guard",
+      "sublabel": "损坏则短路停止",
+      "fill": "#e0f2fe",
+      "stroke": "#0284c7",
+      "flat": true
+    },
+    {
+      "id": "cli-l2",
+      "kind": "rect",
+      "x": 680,
+      "y": 344,
+      "width": 200,
+      "height": 60,
+      "label": "pandas 精算",
+      "sublabel": "openpyxl 写回 + audit",
+      "fill": "#f0fdf4",
+      "stroke": "#22c55e",
+      "flat": true
+    }
+  ],
+  "arrows": [
+    {
+      "id": "load-skill",
+      "source": "skill-l1",
+      "target": "skill-l2",
+      "source_port": "bottom",
+      "target_port": "top",
+      "flow": "control",
+      "label": "命中后读"
+    },
+    {
+      "id": "call-mcp",
+      "source": "mcp-l1",
+      "target": "mcp-l2",
+      "source_port": "bottom",
+      "target_port": "top",
+      "flow": "read",
+      "label": "调用非加载"
+    },
+    {
+      "id": "run-cli",
+      "source": "cli-l1",
+      "target": "cli-l2",
+      "source_port": "bottom",
+      "target_port": "top",
+      "flow": "async",
+      "dashed": true,
+      "label": "约定执行"
+    },
+    {
+      "id": "playbook",
+      "source": "skill-l2",
+      "target": "mcp-l2",
+      "source_port": "right",
+      "target_port": "left",
+      "flow": "control",
+      "label": "先闸门"
+    },
+    {
+      "id": "compute",
+      "source": "mcp-l2",
+      "target": "cli-l2",
+      "source_port": "right",
+      "target_port": "left",
+      "flow": "data",
+      "label": "再精算"
+    }
+  ],
+  "legend_orientation": "horizontal",
+  "legend_x": 48,
+  "legend_y": 510,
+  "legend_locked": true,
+  "legend": [
+    { "flow": "control", "label": "Skill 编排" },
+    { "flow": "read", "label": "MCP 调用" },
+    { "flow": "async", "label": "CLI 约定" },
+    { "flow": "data", "label": "通过后精算" }
+  ],
+  "footer": "excel-guard：corrupt / encoding / chunk / describe / markdown · QwenPaw eager tools/list · 黄金集不走 officecli",
+  "footer_x": 48,
+  "footer_y": 570
+}

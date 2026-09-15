@@ -25,7 +25,7 @@ const C = {
 };
 
 const FONT = "PingFang SC";
-const TOTAL = 21;
+const TOTAL = 29;
 
 const pres = new pptxgen();
 pres.layout = "LAYOUT_WIDE"; // 13.3" x 7.5" — room for 16:10 architecture PNGs
@@ -146,7 +146,7 @@ function addArchSlide(title, file, slideNum, note) {
     margin: 0,
   });
 
-  s.addText("宿主 QwenPaw v2.0.0  ·  扩展只进 poc/  ·  内核 0 行改动", {
+  s.addText("宿主 QwenPaw 2.2.2b1  ·  相对 2.0.0：缓存命中率 + Files 查看/下载  ·  POC 旁路不改内核", {
     x: 0.8,
     y: 2.55,
     w: 11,
@@ -167,10 +167,10 @@ function addArchSlide(title, file, slideNum, note) {
 
   const kpis = [
     { value: "4", label: "专用助手" },
-    { value: "21", label: "MCP 工具" },
-    { value: "4", label: "Skill" },
-    { value: "0", label: "内核改动" },
-    { value: "10/10", label: "Excel 黄金集" },
+    { value: "25", label: "MCP 工具" },
+    { value: "L1-L3", label: "渐进加载" },
+    { value: "Files", label: "可查看下载" },
+    { value: "2.0.0", label: "旧版是黑盒" },
   ];
   kpis.forEach((kpi, i) => {
     const cx = 0.8 + i * 2.4;
@@ -231,12 +231,12 @@ function addArchSlide(title, file, slideNum, note) {
   const items = [
     { n: "01", t: "四助手总览", d: "Agent / Skill / MCP 对照，以及本轮代码升级" },
     { n: "02", t: "接入原则", d: "QwenPaw 不 fork，旁路挂载 Skill + MCP + Hook" },
-    { n: "03", t: "Excel 问答", d: "5 工具护栏 → pandas 精算 → 写后自检" },
+    { n: "03", t: "Excel 问答", d: "9 工具护栏 → pandas 精算 → 写后自检" },
     { n: "04", t: "多模态文件", d: "MinerU 入库 · 四库端口 · RRF 重排 · 看图作答" },
     { n: "05", t: "运营埋点", d: "不进插件市场；本地安装后看「已安装插件」" },
-    { n: "06", t: "报告可视化", d: "交叉表 + 五类图 + docx 组装" },
-    { n: "07", t: "21 个工具中文名", d: "Excel 5 · 知识库 6 · 运营 3 · 报告 7" },
-    { n: "08", t: "能问什么", d: "token 走内核账本；失败率 JSONL 无样本" },
+    { n: "06", t: "L1 / L2 / L3", d: "skill列表摘要 → skill → mcp列表namespace前缀 → 详细mcp → 文件摘要 → 文件详情" },
+    { n: "07", t: "相对 2.0.0", d: "缓存命中率、前缀一致性省 token、Files 可下载；旧版是黑盒" },
+    { n: "08", t: "四助手任务分布", d: "每个助手一张图；优化方向与落地合同一致" },
   ];
   items.forEach((it, i) => {
     const col = i < 4 ? 0 : 1;
@@ -325,8 +325,8 @@ function addArchSlide(title, file, slideNum, note) {
         { text: "Excel问答助手", options: { ...cell, bold: true } },
         { text: "excel-agent", options: cellC },
         { text: "excel-qa-bank", options: cellC },
-        { text: "excel-guard ×5", options: cellC },
-        { text: "检测损坏 / 识别编码 / 分块 / 描述结构 / 转 Markdown", options: cell },
+        { text: "excel-guard ×9", options: cellC },
+        { text: "检测损坏 / 识别编码 / 分块 / 描述结构 / 转 Markdown / 守卫写回 / 结构化读取 / OpenXML 校验 / 渲染成图", options: cell },
       ],
       [
         { text: "多模态文件助手", options: { ...cell, bold: true } },
@@ -414,9 +414,9 @@ function addArchSlide(title, file, slideNum, note) {
   addContentHeader(s, "接入原则：官方内核不动，四个助手全部旁路挂载", 4);
 
   const cards = [
-    { t: "宿主", v: "QwenPaw v2.0.0", d: "git submodule，不 fork。Agent Runtime / Skill Pool / MCP Host / Plugin API 原样使用。" },
+    { t: "宿主", v: "QwenPaw 2.2.2b1", d: "当前宿主，git submodule，不 fork。相对旧版 2.0.0 多了 Files 查看/下载与 cache_read_tokens。" },
     { t: "Skill", v: "skill_paths", d: "poc/skills 登记进 ~/.qwenpaw/config.json，下发到对应智能体，每助手只启用 1 个 Skill。" },
-    { t: "MCP", v: "stdio FastMCP", d: "poc/config/mcp-*.json 导入 Console。21 个工具（Excel 5 + KB 6 + 运营 3 + 报告 7）。" },
+    { t: "MCP", v: "stdio FastMCP", d: "poc/config/mcp-*.json 导入 Console。25 个工具（Excel 9 + KB 6 + 运营 3 + 报告 7）。" },
     { t: "Hook / 健康", v: "官方插件 API", d: "poc-ops-telemetry 注册 6 个 Hook；poc-health 挂 /api/poc/health。均不改内核。" },
   ];
   cards.forEach((c, i) => {
@@ -481,7 +481,7 @@ function addArchSlide(title, file, slideNum, note) {
   addContentHeader(s, "本轮代码升级：Excel 读面压缩 + 知识库多模态闭环", 5);
 
   const left = [
-    { h: "Excel · excel-guard 3→5 工具", b: "新增 describe_workbook、sheet_to_markdown；python 内 preflight_workbook 串行损坏/编码/分块并短路。" },
+    { h: "Excel · excel-guard 现为 9 工具", b: "护栏 5 个 + 守卫写回 edit_workbook、结构化读取 inspect_workbook、OpenXML 校验 validate_workbook、渲染成图 render_workbook。" },
     { h: "结构压缩再精算", b: "表头投票、合并区、公式别名；禁止整表转 markdown 让模型猜数。写后 audit_workbook：#REF! 等 must_fix，硬编码进 review。" },
     { h: "黄金回归 10/10", b: "干净明细 / 多级合并表头 / 未缓存公式列 / GBK CSV。基线按 skill 流程执行 10/10。" },
   ];
@@ -543,7 +543,7 @@ addArchSlide(
   "Excel问答助手：护栏通过后，数字只来自 pandas / openpyxl",
   "excel-agent.png",
   6,
-  "excel-guard：检测损坏表 · 识别编码 · 超大表分块 · 描述表结构 · 表转 Markdown"
+  "excel-guard ×9：检测损坏表 · 识别编码 · 超大表分块 · 描述表结构 · 表转 Markdown · 守卫写回 · 结构化读取 · OpenXML 校验 · 渲染成图"
 );
 
 addArchSlide(
@@ -1073,7 +1073,7 @@ addArchSlide(
 (function slideToolsZh() {
   const s = pres.addSlide();
   s.background = { color: C.white };
-  addContentHeader(s, "21 个 MCP 工具：中文名对照（演示时用中文说）", 16);
+  addContentHeader(s, "25 个 MCP 工具：中文名对照（演示时用中文说）", 16);
 
   const hdr = {
     fill: { color: C.navy },
@@ -1119,14 +1119,16 @@ addArchSlide(
     });
   }
 
-  toolTable("Excel问答  excel-guard（5）+ 代码内护栏", 0.5, [
+  toolTable("Excel问答  excel-guard（9）", 0.5, [
     ["检测损坏表", "detect_corrupt_workbook"],
     ["识别编码", "detect_encoding"],
     ["超大表分块", "chunk_large_workbook"],
     ["描述表结构", "describe_workbook"],
     ["表转 Markdown", "sheet_to_markdown"],
-    ["一次性护栏（代码内）", "preflight_workbook"],
-    ["写后自检（代码内）", "audit_workbook"],
+    ["守卫写回", "edit_workbook"],
+    ["结构化读取", "inspect_workbook"],
+    ["OpenXML 校验", "validate_workbook"],
+    ["渲染成图", "render_workbook"],
   ]);
 
   toolTable("多模态文件  kb-qa（6）", 6.8, [
@@ -1138,7 +1140,7 @@ addArchSlide(
     ["看图作答", "analyze_page"],
   ]);
 
-  addSourceNote(s, "下页继续：运营 3 工具、报告 7 工具。stdio 合计 5+6+3+7=21；preflight / audit 不是 MCP 工具。");
+  addSourceNote(s, "下页继续：运营 3 工具、报告 7 工具。stdio 合计 9+6+3+7=25。preflight / audit 是 python 内护栏，不是 MCP。");
 })();
 
 (function slideToolsZh2() {
@@ -1340,7 +1342,7 @@ addArchSlide(
   const kpis = [
     { v: "10/10", l: "Excel 黄金集", s: "scripts/excel_qa_eval.py" },
     { v: "9 条", l: "KB Golden QA", s: "text / table / image 分组" },
-    { v: "21", l: "stdio 工具齐全", s: "5 + 7 + 3 + 6" },
+    { v: "25", l: "stdio 工具齐全", s: "9 + 6 + 3 + 7" },
     { v: "双端口", l: "ES + MySQL", s: "19200 / 13306，不占 9200/3306" },
   ];
   kpis.forEach((k, i) => {
@@ -1482,7 +1484,178 @@ addArchSlide(
 })();
 
 // ═══════════════════════════════════════════════════════
-// SLIDE 13 – Closing
+// SLIDE 21 – L1 L2 L3 chain
+// ═══════════════════════════════════════════════════════
+(function slideL123() {
+  const s = pres.addSlide();
+  s.background = { color: C.white };
+  addContentHeader(s, "L1 / L2 / L3：上下文渐进式工具加载", 21);
+
+  s.addText("skill列表摘要 → skill → mcp列表namespace前缀 → 详细mcp → 文件摘要 → 文件详情", {
+    x: 0.5,
+    y: 0.92,
+    w: 12.3,
+    h: 0.42,
+    fontSize: 14,
+    fontFace: FONT,
+    bold: true,
+    color: C.navy,
+    align: "center",
+    margin: 0,
+  });
+
+  const levels = [
+    { k: "L1", t: "skill列表摘要", d: "YAML description 短目录。始终在上下文最前面，前缀不变，利于缓存命中率。" },
+    { k: "L2", t: "skill + mcp列表", d: "选中助手后才加载 skill 正文，再给带 namespace前缀 的 mcp列表（excel_guard__ / kb_qa__ / ops_data__ / report_visualizer__）。" },
+    { k: "L3", t: "详细mcp → 文件", d: "调用时才展开详细mcp 入参。文件摘要（describe / list / parse）之后才文件详情（markdown / 看图 / 事件 / docx）。" },
+  ];
+  levels.forEach((lv, i) => {
+    const x = 0.5 + i * 4.2;
+    s.addShape(pres.shapes.RECTANGLE, {
+      x, y: 1.5, w: 4.0, h: 3.55, fill: { color: C.offWhite },
+    });
+    s.addText(lv.k, {
+      x, y: 1.65, w: 4.0, h: 0.5,
+      fontSize: 22, fontFace: FONT, bold: true, color: C.gold, align: "center", margin: 0,
+    });
+    s.addText(lv.t, {
+      x: x + 0.2, y: 2.2, w: 3.6, h: 0.55,
+      fontSize: 16, fontFace: FONT, bold: true, color: C.text, align: "center", margin: 0,
+    });
+    s.addText(lv.d, {
+      x: x + 0.25, y: 2.9, w: 3.5, h: 1.9,
+      fontSize: 13, fontFace: FONT, color: C.textLight, margin: 0,
+    });
+  });
+
+  s.addText("同一套顺序同时降低任务完成时间、提高准确率与完成效率：模型先看见目录，再按需打开工具和文件，不把整表/整库灌进第一轮上下文。", {
+    x: 0.5, y: 5.25, w: 12.3, h: 1.5,
+    fontSize: 14, fontFace: FONT, color: C.text, margin: 0,
+  });
+  addSourceNote(s, "合同写在四个 SKILL.md「渐进加载合同」；MCP 配置声明 namespace。POC 不改 QwenPaw 内核。");
+})();
+
+// ═══════════════════════════════════════════════════════
+// SLIDE 22 – cache / prefix / ROI
+// ═══════════════════════════════════════════════════════
+(function slideRoi() {
+  const s = pres.addSlide();
+  s.background = { color: C.white };
+  addContentHeader(s, "前缀一致性提高缓存命中率，从而省 token、提高 ROI", 22);
+
+  const cards = [
+    { t: "缓存命中率", d: "L1 skill列表摘要每轮相同。宿主 2.2.2b1 用 cache_read_tokens / cache_hit_rate 记账。前缀稳定 → 更多 prompt 走缓存。" },
+    { t: "前缀一致性", d: "后置 skill 正文、mcp列表、详细mcp、文件摘要、文件详情。变的是后缀，不变的是前缀，KV cache 可复用。" },
+    { t: "token 经济型 ROI", d: "少灌 schema 和整文件，完成时间下降、准确率上升（先摘要再详情），单位任务 token 下降，ROI 提高。" },
+    { t: "完成时间 / 准确率", d: "不必每次重读 25 个工具全文。Excel 先描述表结构再读区间；知识库先检索再看图；运营先列 JSONL 再读事件。" },
+  ];
+  cards.forEach((c, i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const x = 0.55 + col * 6.35;
+    const y = 1.05 + row * 2.7;
+    s.addShape(pres.shapes.RECTANGLE, { x, y, w: 6.15, h: 2.5, fill: { color: C.offWhite } });
+    s.addText(c.t, {
+      x: x + 0.3, y: y + 0.25, w: 5.55, h: 0.45,
+      fontSize: 18, fontFace: FONT, bold: true, color: C.navy, margin: 0,
+    });
+    s.addText(c.d, {
+      x: x + 0.3, y: y + 0.85, w: 5.55, h: 1.4,
+      fontSize: 14, fontFace: FONT, color: C.textLight, margin: 0,
+    });
+  });
+  addSourceNote(s, "机制对比，不编造线上命中百分比。字段见 QwenPaw token_usage.cache_read_tokens。");
+})();
+
+// ═══════════════════════════════════════════════════════
+// SLIDE 23 – 2.0.0 vs 2.2.2b1 Files
+// ═══════════════════════════════════════════════════════
+(function slideV2() {
+  const s = pres.addSlide();
+  s.background = { color: C.white };
+  addContentHeader(s, "新版本比 2.0.0 好：有缓存命中率，还有文件管理系统", 23);
+
+  s.addShape(pres.shapes.RECTANGLE, { x: 0.55, y: 1.05, w: 6.0, h: 5.5, fill: { color: C.offWhite } });
+  s.addText("QwenPaw 2.0.0", {
+    x: 0.8, y: 1.25, w: 5.5, h: 0.45,
+    fontSize: 20, fontFace: FONT, bold: true, color: C.red, margin: 0,
+  });
+  s.addText("操作像黑盒。没有 Files 页，生成的表格/报告/页图你看不见、不能下载。没有 cache_read_tokens，前缀即使用了也无从计量缓存命中率。助手在工作区里读写，评委只能看聊天窗口。", {
+    x: 0.8, y: 1.9, w: 5.5, h: 4.2,
+    fontSize: 16, fontFace: FONT, color: C.text, margin: 0,
+  });
+
+  s.addShape(pres.shapes.RECTANGLE, { x: 6.75, y: 1.05, w: 6.0, h: 5.5, fill: { color: C.offWhite } });
+  s.addText("QwenPaw 2.2.2b1", {
+    x: 7.0, y: 1.25, w: 5.5, h: 0.45,
+    fontSize: 20, fontFace: FONT, bold: true, color: C.green, margin: 0,
+  });
+  s.addText("Console Files 可查看、操作、生成并下载工作区文件。token 账本含 cache_read_tokens，能算缓存命中率。前缀一致性让 L1 目录复用缓存，省 token、提高 ROI。POC 仍不改内核，只对齐渐进加载合同。", {
+    x: 7.0, y: 1.9, w: 5.5, h: 4.2,
+    fontSize: 16, fontFace: FONT, color: C.text, margin: 0,
+  });
+  addSourceNote(s, "Files：console/src/pages/Files + files-workspace 下载按钮。2.0.0 无此页。");
+})();
+
+addArchSlide(
+  "Excel问答任务分布：skill列表摘要 → excel_guard__ → 文件摘要 → 文件详情",
+  "excel-task-map.png",
+  24,
+  "检测损坏表 / 识别编码 / 描述表结构（摘要）→ 表转 Markdown、inspect（详情）→ pandas"
+);
+
+addArchSlide(
+  "多模态文件任务分布：skill列表摘要 → kb_qa__ → 文件摘要 → 文件详情",
+  "kb-task-map.png",
+  25,
+  "解析文档 / 检索知识（摘要）→ 看图作答 analyze_page（详情）"
+);
+
+addArchSlide(
+  "运营助手任务分布：skill列表摘要 → ops_data__ → 文件摘要 → 文件详情",
+  "ops-task-map.png",
+  26,
+  "列出埋点文件（摘要）→ 最近事件（详情）；无文件则暂无埋点"
+);
+
+addArchSlide(
+  "报告可视化任务分布：skill列表摘要 → report_visualizer__ → 文件摘要 → 文件详情",
+  "report-task-map.png",
+  27,
+  "交叉表（摘要）→ 生成 Word 报告（详情）；Files 页可下载 docx"
+);
+
+// ═══════════════════════════════════════════════════════
+// SLIDE 28 – optimization directions
+// ═══════════════════════════════════════════════════════
+(function slideOpt() {
+  const s = pres.addSlide();
+  s.background = { color: C.white };
+  addContentHeader(s, "四个助手的优化方向（已落到 SKILL.md / MCP namespace）", 28);
+
+  const opts = [
+    { t: "Excel问答", d: "L1 只留触发词。L2 给 excel_guard__ mcp列表。L3 先 describe 文件摘要，再 markdown/inspect 文件详情，最后 pandas。禁止整表进第一轮。" },
+    { t: "多模态文件", d: "L1 短目录。L2 kb_qa__ 六工具列表。L3 先 parse/search 文件摘要，精确数字再 analyze_page 文件详情。表格合计仍交 Excel。" },
+    { t: "运营", d: "L1 短目录。L2 ops_data__ 三工具。L3 先 list_telemetry_files 文件摘要，再 recent_events 文件详情。无 JSONL 不编造。" },
+    { t: "报告可视化", d: "L1 短目录。L2 report_visualizer__ 七工具。L3 先交叉表文件摘要，再 render_docx 文件详情。产物走 Files 查看/下载。" },
+  ];
+  opts.forEach((o, i) => {
+    const y = 1.0 + i * 1.35;
+    s.addShape(pres.shapes.RECTANGLE, { x: 0.55, y, w: 12.2, h: 1.22, fill: { color: C.offWhite } });
+    s.addText(o.t, {
+      x: 0.8, y: y + 0.1, w: 11.7, h: 0.32,
+      fontSize: 16, fontFace: FONT, bold: true, color: C.navy, margin: 0,
+    });
+    s.addText(o.d, {
+      x: 0.8, y: y + 0.48, w: 11.7, h: 0.62,
+      fontSize: 13, fontFace: FONT, color: C.textLight, margin: 0,
+    });
+  });
+  addSourceNote(s, "落地：poc/skills/*/SKILL.md 渐进加载合同 + poc/config/mcp-*.json namespace 字段。");
+})();
+
+// ═══════════════════════════════════════════════════════
+// SLIDE 29 – Closing
 // ═══════════════════════════════════════════════════════
 (function slide13() {
   const s = pres.addSlide();
@@ -1500,7 +1673,7 @@ addArchSlide(
     charSpacing: 2,
     margin: 0,
   });
-  s.addText("四个助手都在 QwenPaw 旁路跑通：护栏先过、数字用代码、来源带页码、没有数据不编造。", {
+  s.addText("L1/L2/L3 渐进加载 + 2.2.2b1 Files/缓存命中率：比 2.0.0 黑盒更省 token、更高 ROI。", {
     x: 0.8,
     y: 1.9,
     w: 11.7,
@@ -1513,10 +1686,10 @@ addArchSlide(
   });
 
   const closes = [
-    { t: "Excel", d: "5 工具 + 黄金 10/10" },
-    { t: "知识库", d: "6 工具 + 看图 + 可降级四库" },
-    { t: "运营", d: "插件 Hook 写 JSONL；token 另有内核账本" },
-    { t: "报告", d: "7 工具出交叉表与五类图" },
+    { t: "Excel", d: "excel_guard__ 先摘要后详情" },
+    { t: "知识库", d: "kb_qa__ 先检索再看图" },
+    { t: "运营", d: "ops_data__ 先列文件再事件" },
+    { t: "报告", d: "docx 可在 Files 下载" },
   ];
   closes.forEach((c, i) => {
     const x = 0.8 + i * 3.05;
@@ -1552,7 +1725,7 @@ addArchSlide(
     });
   });
 
-  s.addText("顺德农商行 POC  |  2026-09-14  |  仓库旁路 poc/  |  内核 0 行", {
+  s.addText("顺德农商行 POC  |  2026-09-15  |  宿主 2.2.2b1 vs 2.0.0 黑盒  |  旁路 poc/", {
     x: 0,
     y: 6.9,
     w: 13.3,

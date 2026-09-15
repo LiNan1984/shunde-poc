@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "mode": "architecture",
+  "template_type": "architecture",
+  "style": 1,
+  "quality_profile": "showcase",
+  "width": 960,
+  "height": 600,
+  "title": "多模态文件任务分布",
+  "subtitle": "L1 摘要 → L2 skill / kb_qa__ → L3 切块摘要再看图详情",
+  "containers": [
+    { "id": "control-plane", "x": 40, "y": 120, "width": 880, "height": 116, "label": "L1 / L2 稳定前缀" },
+    { "id": "execution-state", "x": 40, "y": 304, "width": 880, "height": 136, "label": "L3 按需展开" }
+  ],
+  "nodes": [
+    { "id": "client", "kind": "rect", "x": 60, "y": 148, "width": 200, "height": 64, "label": "问这份 PDF", "sublabel": "缺块 / 图表", "fill": "#f8fafc", "stroke": "#94a3b8", "flat": true },
+    { "id": "gateway", "kind": "double_rect", "x": 330, "y": 148, "width": 230, "height": 64, "label": "L1 skill列表摘要", "sublabel": "YAML description", "fill": "#fffbeb", "stroke": "#f59e0b", "flat": true },
+    { "id": "agent", "kind": "double_rect", "x": 640, "y": 148, "width": 230, "height": 64, "label": "L2 skill", "sublabel": "kb_qa__ mcp列表", "fill": "#faf5ff", "stroke": "#8b5cf6", "flat": true },
+    { "id": "memory", "kind": "rect", "x": 60, "y": 340, "width": 200, "height": 64, "label": "详细mcp", "sublabel": "入库入参", "fill": "#f0f9ff", "stroke": "#38bdf8", "flat": true },
+    { "id": "tools", "kind": "rect", "x": 330, "y": 340, "width": 230, "height": 64, "label": "文件摘要", "sublabel": "parse / search", "fill": "#f0fdf4", "stroke": "#22c55e", "flat": true },
+    { "id": "eval", "kind": "rect", "x": 640, "y": 340, "width": 230, "height": 64, "label": "文件详情", "sublabel": "analyze_page", "fill": "#fff1f2", "stroke": "#fb7185", "flat": true }
+  ],
+  "arrows": [
+    { "id": "request", "source": "client", "target": "gateway", "source_port": "right", "target_port": "left", "flow": "control", "label": "L1" },
+    { "id": "dispatch", "source": "gateway", "target": "agent", "source_port": "right", "target_port": "left", "flow": "control", "label": "L2" },
+    { "id": "augment", "source": "memory", "target": "tools", "source_port": "right", "target_port": "left", "flow": "read", "label": "摘要" },
+    { "id": "trace", "source": "tools", "target": "eval", "source_port": "right", "target_port": "left", "flow": "write", "label": "看图" }
+  ],
+  "legend_orientation": "horizontal",
+  "legend_x": 48,
+  "legend_y": 510,
+  "legend_locked": true,
+  "legend": [
+    { "flow": "control", "label": "前缀稳定" },
+    { "flow": "read", "label": "文件摘要" },
+    { "flow": "write", "label": "文件详情" }
+  ],
+  "footer": "表格数值仍交给 Excel 问答精算，不把 RAG 切片当合计",
+  "footer_x": 48,
+  "footer_y": 570
+}
