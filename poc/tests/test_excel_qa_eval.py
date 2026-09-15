@@ -22,7 +22,7 @@ def test_build_qa_fixture_writes_files_and_manifest(tmp_path: Path) -> None:
     built = build_qa_fixture(tmp_path)
 
     assert built["version"] == "1.0"
-    assert len(built["questions"]) == 14
+    assert len(built["questions"]) == 15
     write_ids = {q["id"] for q in built["questions"] if q["check"] == "write"}
     assert write_ids == {
         "q11_write_profit_column",
@@ -81,7 +81,7 @@ def test_score_answers_perfect_golden_scores_one(tmp_path: Path) -> None:
     report = score_answers(questions, answers)
 
     assert report["accuracy"] == 1.0
-    assert report["correct"] == report["n"] == 14
+    assert report["correct"] == report["n"] == 15
     assert report["failed"] == []
 
 
@@ -194,3 +194,22 @@ def test_route_question_expected_derivable_from_files(tmp_path: Path) -> None:
     sales = pd.read_excel(tmp_path / "销售明细.xlsx")
     assert "部门" not in sales.columns
     assert "部门" not in pd.read_excel(tmp_path / "公式列.xlsx").columns
+
+
+def test_chunk_window_question_expected_derivable_and_unique(tmp_path: Path) -> None:
+    """q15 的黄金答案从落盘文件独立重算，且窗口内最大值唯一。"""
+    import pandas as pd
+
+    build_qa_fixture(tmp_path)
+    big = pd.read_excel(tmp_path / "大表明细.xlsx")
+
+    # sheet 第 5001~5100 行（表头算第 1 行）-> iloc 4999..5098
+    window = big.iloc[4999:5099]
+    assert len(window) == 100
+    top_amount = window["销售额"].max()
+    winners = window[window["销售额"] == top_amount]["网点"].unique()
+    assert len(winners) == 1, f"窗口内最大值不唯一: {winners}"
+    assert winners[0] == golden_answers()["q15_chunk_window_top_branch"]
+
+    # 全表 6000 行，超过分块默认阈值，逼出 chunk 路径
+    assert len(big) == 6000

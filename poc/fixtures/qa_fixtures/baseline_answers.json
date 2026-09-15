@@ -12,5 +12,6 @@
   "q11_write_profit_column": "poc/fixtures/qa_fixtures/golden_outputs/golden_利润列.xlsx",
   "q12_write_region_summary": "poc/fixtures/qa_fixtures/golden_outputs/golden_地区汇总.xlsx",
   "q13_write_staff_xlsx": "poc/fixtures/qa_fixtures/golden_outputs/golden_网点名单.xlsx",
-  "q14_route_staff_file": "网点名单.csv"
+  "q14_route_staff_file": "网点名单.csv",
+  "q15_chunk_window_top_branch": "网点08"
 }

@@ -74,6 +74,19 @@ for _n in range(1, 21):
         _STAFF_ROWS.append((_name, "风险部", "天河支行"))
 del _n, _name
 
+# 6000-row large sheet: amounts step by 7 within any 100-row window (< 5000),
+# so the max inside the q15 window is unique by construction.
+_REGION_CYCLE = ("顺德", "广州", "佛山", "珠海")
+_LARGE_ROWS: list[tuple[str, str, str, int]] = [
+    (
+        f"2024-03-{(_i % 28) + 1:02d}",
+        _REGION_CYCLE[_i % 4],
+        f"网点{(_i % 8) + 1:02d}",
+        100 + (_i * 7) % 5000,
+    )
+    for _i in range(6000)
+]
+
 
 # --- workbook writers ----------------------------------------------------------
 
@@ -126,6 +139,16 @@ def _write_staff_csv(path: Path) -> None:
         writer.writerows(_STAFF_ROWS)
 
 
+def _write_large_workbook(path: Path) -> None:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "大表明细"
+    ws.append(["日期", "地区", "网点", "销售额"])
+    for row in _LARGE_ROWS:
+        ws.append(list(row))
+    wb.save(path)
+
+
 # --- golden answers (computed from the same lists, not hand-typed) -------------
 
 
@@ -143,6 +166,10 @@ def _compute_expected() -> dict[str, Any]:
     high_revenue_count = sum(1 for _, v in revenues if v > 5000)
     retail_count = sum(1 for _, dept, _ in _STAFF_ROWS if dept == "零售部")
 
+    # q15: sheet rows 5001..5100 (header is row 1) -> data indices 4999..5098
+    q15_window = _LARGE_ROWS[4999:5099]
+    q15_top_row = max(q15_window, key=lambda r: r[3])
+
     def region_summary(name: str, col: int) -> Any:
         return next(row[col] for row in _SUMMARY_ROWS if row[0] == name)
 
@@ -157,6 +184,7 @@ def _compute_expected() -> dict[str, Any]:
         "q08_revenue_total": round(float(revenue_total), 2),
         "q09_revenue_over_5000": high_revenue_count,
         "q10_retail_headcount": retail_count,
+        "q15_chunk_window_top_branch": q15_top_row[2],
     }
 
 
@@ -288,6 +316,18 @@ def golden_questions() -> list[dict[str, Any]]:
             "expected": "网点名单.csv",
             "check": "text",
         },
+        {
+            "id": "q15_chunk_window_top_branch",
+            "file": "大表明细.xlsx",
+            "sheet": "大表明细",
+            "question": (
+                "大表明细.xlsx 共 6000 行。表内第 5001~5100 行（第 1 行是表头）中，"
+                "销售额最高的那笔记录发生在哪个网点？（请先 chunk_large_workbook 分块，"
+                "再按区间读取，不要整表载入）"
+            ),
+            "expected": exp["q15_chunk_window_top_branch"],
+            "check": "text",
+        },
     ]
 
 
@@ -308,6 +348,7 @@ def build_qa_fixture(dest_dir: Path | None = None) -> dict[str, Any]:
     _write_summary_workbook(dest / "分区域汇总.xlsx")
     _write_formula_workbook(dest / "公式列.xlsx")
     _write_staff_csv(dest / "网点名单.csv")
+    _write_large_workbook(dest / "大表明细.xlsx")
     questions = golden_questions()
     manifest = {
         "version": QA_SET_VERSION,
@@ -324,6 +365,7 @@ def build_qa_fixture(dest_dir: Path | None = None) -> dict[str, Any]:
             "分区域汇总.xlsx",
             "公式列.xlsx",
             "网点名单.csv",
+            "大表明细.xlsx",
         ],
         "questions": questions,
         "version": QA_SET_VERSION,

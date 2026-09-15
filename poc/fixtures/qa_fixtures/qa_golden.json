@@ -113,6 +113,14 @@
       "question": "这批文件里哪一份包含员工部门信息？（多文件场景：先检索定位，answers 里只填文件名，如 xx.csv）",
       "expected": "网点名单.csv",
       "check": "text"
+    },
+    {
+      "id": "q15_chunk_window_top_branch",
+      "file": "大表明细.xlsx",
+      "sheet": "大表明细",
+      "question": "大表明细.xlsx 共 6000 行。表内第 5001~5100 行（第 1 行是表头）中，销售额最高的那笔记录发生在哪个网点？（请先 chunk_large_workbook 分块，再按区间读取，不要整表载入）",
+      "expected": "网点08",
+      "check": "text"
     }
   ]
 }
