@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from mcp.server.fastmcp import FastMCP
+from poc.hooks.telemetry import mark_mcp_started, traced_fastmcp
 
 from .embed import load_embedding_secrets
 from .ingest import ingest_pdf as _ingest_pdf
@@ -13,7 +13,7 @@ from .retrieve import answer_knowledge as _answer_knowledge
 from .retrieve import search_knowledge as _search_knowledge
 from .vision import analyze_page as _analyze_page
 
-mcp = FastMCP("kb-qa")
+mcp = traced_fastmcp("kb-qa")
 
 
 @mcp.tool()
@@ -91,6 +91,7 @@ def analyze_page(doc_id: str = "", path: str = "", page: int = 0, query: str = "
 
 def main() -> None:
     load_embedding_secrets()
+    mark_mcp_started("kb-qa")
     mcp.run()
 
 

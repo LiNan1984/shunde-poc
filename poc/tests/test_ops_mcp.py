@@ -46,12 +46,13 @@ def test_write_creates_jsonl(workspace: Path) -> None:
     assert rec["ts"].endswith("Z")
 
 
-def test_write_swallows_bad_workspace(monkeypatch) -> None:
-    """Telemetry must never raise; an unusable sandbox just no-ops."""
+def test_write_swallows_bad_workspace(monkeypatch, capsys) -> None:
+    """Telemetry must never raise; an unusable sandbox skips and logs."""
     monkeypatch.setenv("POC_WORKSPACE", "/no/such/path/__no_such__")
     telemetry._WRITTEN_DIRS.clear()
-    telemetry.write("call_volume", {"session_id": "s1"})
-    # No assertion — passing without exception is the contract.
+    path = telemetry.write("call_volume", {"session_id": "s1"})
+    assert path is None
+    assert "telemetry skip" in capsys.readouterr().err
 
 
 def test_list_when_no_data(workspace: Path) -> None:
@@ -139,3 +140,42 @@ def test_mcp_tool_call_roundtrip(workspace: Path) -> None:
     body = asyncio.run(_invoke())
     assert body["ok"] is True
     assert body["count"] == 1
+
+
+def test_list_tool_writes_jsonl_when_dir_was_empty(workspace: Path) -> None:
+    """The user-facing path: ops-data MCP must produce JSONL on first list."""
+    assert list((workspace / "telemetry").rglob("ops.jsonl")) == []
+
+    async def _invoke() -> dict:
+        result = await mcp.call_tool("list_telemetry_files_tool", {})
+        return json.loads(result[0].text)
+
+    body = asyncio.run(_invoke())
+    assert body["ok"] is True
+    assert body["count"] >= 1
+    files = list((workspace / "telemetry").rglob("ops.jsonl"))
+    assert files, "list_telemetry_files_tool must write ops.jsonl before listing"
+    recs = [
+        json.loads(line)
+        for line in files[0].read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    tools = {rec.get("tool") for rec in recs}
+    assert any(
+        isinstance(t, str) and t.endswith("list_telemetry_files_tool") for t in tools
+    )
+
+    summary = asyncio.run(
+        mcp.call_tool("summarize_calls_tool", {})
+    )
+    summary_body = json.loads(summary[0].text)
+    assert summary_body["ok"] is True
+    assert summary_body["counts"]["total"] >= 1
+
+
+def test_mark_mcp_started_writes_under_workspace(workspace: Path) -> None:
+    path = telemetry.mark_mcp_started("ops-data")
+    assert path is not None
+    assert path.is_file()
+    rec = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
+    assert rec["event"] == "mcp_started"

@@ -5,6 +5,9 @@ This is a tiny read-only surface — the heavy lifting (real ops DB)
 lives behind 任务 G. For now we expose three tools that operate on the
 JSONL files written by :mod:`poc.hooks.telemetry`:
 
+The sandbox root is resolved by :func:`poc.hooks.telemetry.resolve_workspace_root`
+(``POC_WORKSPACE`` / ``QWENPAW_WORKING_DIR``, same as the Runtime hooks).
+
 * :func:`list_telemetry_files` — which JSONL files exist today
 * :func:`summarize_calls` — counts per category / status / tool
 * :func:`recent_events` — last N events, filterable by category
@@ -16,19 +19,14 @@ All paths go through the sandbox via :func:`_resolve_path`; the same
 from __future__ import annotations
 
 import json
-import os
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-# Inherit sandbox logic from excel-guard so we don't reinvent
-# workspace_root / path resolution. M1 fail-closed behavior is reused
-# by reference.
-from poc.excel_guard_mcp.guards import (  # noqa: F401  (re-exports semantics)
+from poc.excel_guard_mcp.guards import (
     _classify_open_error,
     _resolve_allowed_path,
-    _workspace_root,
 )
+from poc.hooks.telemetry import resolve_workspace_root
 
 
 def _resolve_path(path: str) -> tuple[Path | None, dict | None]:
@@ -36,9 +34,16 @@ def _resolve_path(path: str) -> tuple[Path | None, dict | None]:
 
 
 def _telemetry_root() -> tuple[Path | None, dict | None]:
-    root, root_err = _workspace_root()
-    if root_err is not None or root is None:
-        return None, root_err
+    root = resolve_workspace_root()
+    if root is None:
+        return None, {
+            "ok": False,
+            "issue": "workspace_invalid",
+            "message": (
+                "沙箱不可用 / telemetry sandbox unavailable "
+                "(POC_WORKSPACE / QWENPAW_WORKING_DIR)."
+            ),
+        }
     return root / "telemetry", None
 
 

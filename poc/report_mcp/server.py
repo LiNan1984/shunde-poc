@@ -3,13 +3,13 @@
 
 from __future__ import annotations
 
-from mcp.server.fastmcp import FastMCP
+from poc.hooks.telemetry import mark_mcp_started, traced_fastmcp
 
 from .charts import render_bar, render_heatmap, render_line, render_pie, render_scatter
 from .crosstab import pivot_table
 from .docx_gen import render_docx_report
 
-mcp = FastMCP("report-visualizer")
+mcp = traced_fastmcp("report-visualizer")
 
 
 @mcp.tool()
@@ -123,6 +123,7 @@ def render_docx_report_tool(
 
 
 def main() -> None:
+    mark_mcp_started("report-visualizer")
     mcp.run()
 
 

@@ -1,8 +1,7 @@
 """Ops-telemetry plugin entry point.
 
-Registers the four-category telemetry hooks via QwenPaw's
-``api.register_runtime_hook`` so they fire on every request that
-reaches their phase. Install with::
+Bundles the JSONL sink next to this file so ``qwenpaw plugin install``
+copies a working writer even when ``/root/shunde-poc/poc/hooks`` is stale.
 
     qwenpaw plugin install <REPO_ROOT>/poc/plugins/ops-telemetry
 """
@@ -15,25 +14,19 @@ from pathlib import Path
 
 from qwenpaw.plugins.api import PluginApi  # type: ignore[import-not-found]
 
+_HERE = Path(__file__).resolve().parent
+if str(_HERE) not in sys.path:
+    sys.path.insert(0, str(_HERE))
 
-def _bootstrap_poc() -> None:
-    """Keep ``poc.hooks`` importable after the plugin is copied into ~/.qwenpaw."""
-    here = Path(__file__).resolve()
-    candidates = [
-        here.parents[2],
-        Path("/root/shunde-poc"),
-        Path("/Users/linan/Desktop/aicode/shunde"),
-    ]
-    for cand in candidates:
-        if (cand / "poc" / "hooks" / "ops_hooks.py").is_file():
-            text = str(cand)
-            if text not in sys.path:
-                sys.path.insert(0, text)
-            return
+from sink.ops_hooks import ALL_HOOKS  # noqa: E402
+from sink import telemetry as _telemetry  # noqa: E402
 
-
-_bootstrap_poc()
-from poc.hooks.ops_hooks import ALL_HOOKS  # noqa: E402
+_pin_candidates = [Path("/root/shunde-poc")]
+for _parent in _HERE.parents:
+    if (_parent / "poc" / "hooks" / "ops_hooks.py").is_file():
+        _pin_candidates.append(_parent)
+        break
+_telemetry.pin_host_sandbox(_pin_candidates)
 
 logger = logging.getLogger("poc.plugins.ops_telemetry")
 
@@ -47,8 +40,11 @@ class PocOpsTelemetryPlugin:
     def register(self, api: PluginApi) -> None:
         for hook in ALL_HOOKS:
             api.register_runtime_hook(hook)
+        path = _telemetry.write_plugin_loaded([h.name for h in ALL_HOOKS])
         logger.info(
-            "POC ops telemetry plugin registered %d hooks", len(ALL_HOOKS)
+            "POC ops telemetry plugin registered %d hooks jsonl=%s",
+            len(ALL_HOOKS),
+            path,
         )
 
 

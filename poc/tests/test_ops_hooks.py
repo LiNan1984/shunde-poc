@@ -66,15 +66,18 @@ def test_all_hooks_well_formed() -> None:
     # These are the canonical QwenPaw Phase values (from
     # QwenPaw/src/qwenpaw/runtime/phases.py). We assert them as strings
     # so the test stays importable without qwenpaw installed.
+    # Phase enum *values* (QwenPaw/src/qwenpaw/runtime/phases.py): when
+    # qwenpaw is importable the hooks carry real Phase members, otherwise
+    # the lowercase string value. Either way str() matches these.
     expected_phases = {
-        "PRE_DISPATCH",
-        "POST_DISPATCH",
-        "PRE_AGENT_BUILD",
-        "POST_AGENT_BUILD",
-        "PRE_EXECUTE",
-        "POST_RESPONSE",
-        "ON_ERROR",
-        "FINALLY",
+        "pre_dispatch",
+        "post_dispatch",
+        "pre_agent_build",
+        "post_agent_build",
+        "pre_execute",
+        "post_response",
+        "on_error",
+        "finally",
     }
     for h in ALL_HOOKS:
         assert h.phase in expected_phases, (
@@ -89,8 +92,9 @@ def test_hook_run_does_not_crash(hook, tmp_path, monkeypatch) -> None:
 
     import asyncio
     result = asyncio.run(hook.run(_stub_ctx()))
-    # Result can be a HookResult (host venv) or None (stub fallback).
-    assert result is None or hasattr(result, "action")
+    # 2.2.2b1 HookRegistry.run does result.action — None raises AttributeError.
+    assert result is not None
+    assert hasattr(result, "action")
 
 
 def test_call_volume_end_records_latency(tmp_path, monkeypatch) -> None:

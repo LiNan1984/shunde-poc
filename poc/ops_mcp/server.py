@@ -3,11 +3,11 @@
 
 from __future__ import annotations
 
-from mcp.server.fastmcp import FastMCP
+from poc.hooks.telemetry import mark_mcp_started, traced_fastmcp
 
 from .server_lib import list_telemetry_files, recent_events, summarize_calls
 
-mcp = FastMCP("ops-data")
+mcp = traced_fastmcp("ops-data")
 
 
 @mcp.tool()
@@ -33,6 +33,7 @@ def recent_events_tool(
 
 
 def main() -> None:
+    mark_mcp_started("ops-data")
     mcp.run()
 
 

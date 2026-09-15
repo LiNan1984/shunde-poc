@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from mcp.server.fastmcp import FastMCP
+from poc.hooks.telemetry import mark_mcp_started, traced_fastmcp
 
 from .guards import (
     chunk_large_workbook as _chunk_large_workbook,
@@ -21,7 +21,7 @@ from .readers import (
     sheet_to_markdown as _sheet_to_markdown,
 )
 
-mcp = FastMCP("excel-guard")
+mcp = traced_fastmcp("excel-guard")
 
 
 @mcp.tool()
@@ -83,6 +83,7 @@ def render_workbook(path: str, out_path: str = "") -> dict:
 
 
 def main() -> None:
+    mark_mcp_started("excel-guard")
     mcp.run()
 
 
