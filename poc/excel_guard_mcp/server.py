@@ -10,6 +10,12 @@ from .guards import (
     detect_corrupt_workbook as _detect_corrupt_workbook,
     detect_encoding as _detect_encoding,
 )
+from .officecli_bridge import (
+    edit_workbook as _edit_workbook,
+    inspect_workbook as _inspect_workbook,
+    render_workbook as _render_workbook,
+    validate_workbook as _validate_workbook_cli,
+)
 from .readers import (
     describe_workbook as _describe_workbook,
     sheet_to_markdown as _sheet_to_markdown,
@@ -50,6 +56,30 @@ def sheet_to_markdown(
     return _sheet_to_markdown(
         path, sheet=sheet, start_row=start_row, end_row=end_row
     )
+
+
+@mcp.tool()
+def edit_workbook(path: str, commands: list[dict]) -> dict:
+    """守卫写回：officecli 批量编辑（add/set/remove/move/swap），写前预检、写后 validate+公式审计。"""
+    return _edit_workbook(path, commands)
+
+
+@mcp.tool()
+def inspect_workbook(path: str, node_path: str = "/", depth: int = 1) -> dict:
+    """结构化读取：officecli get 读取单元格样式/格式细节，补充 describe_workbook 看不到的信息。"""
+    return _inspect_workbook(path, node_path=node_path, depth=depth)
+
+
+@mcp.tool()
+def validate_workbook(path: str) -> dict:
+    """OpenXML 校验：officecli validate 检查工作簿 schema 合法性。"""
+    return _validate_workbook_cli(path)
+
+
+@mcp.tool()
+def render_workbook(path: str, out_path: str = "") -> dict:
+    """渲染成图：officecli 截图为 PNG（默认写在工作簿旁），供 agent 目检成品。"""
+    return _render_workbook(path, out_path=out_path)
 
 
 def main() -> None:

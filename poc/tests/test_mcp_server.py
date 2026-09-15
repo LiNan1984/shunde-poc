@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -33,6 +34,10 @@ EXPECTED_TOOLS = {
     "chunk_large_workbook",
     "describe_workbook",
     "sheet_to_markdown",
+    "edit_workbook",
+    "inspect_workbook",
+    "validate_workbook",
+    "render_workbook",
 }
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -95,10 +100,10 @@ def _call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def test_server_registers_exactly_five_tools() -> None:
+def test_server_registers_exactly_nine_tools() -> None:
     tools = _list_tools()
 
-    assert len(tools) == 5
+    assert len(tools) == 9
     assert set(tools) == EXPECTED_TOOLS
 
 
@@ -138,8 +143,17 @@ def test_tool_schemas_require_path() -> None:
     for tool_name in EXPECTED_TOOLS:
         schema = tools[tool_name].inputSchema
         assert schema["type"] == "object"
-        assert schema.get("required") == ["path"]
+        assert "path" in schema["required"]
         assert schema["properties"]["path"]["type"] == "string"
+
+
+def test_edit_tool_schema_requires_commands_list() -> None:
+    schema = _list_tools()["edit_workbook"].inputSchema
+    commands = schema["properties"]["commands"]
+
+    assert set(schema["required"]) == {"path", "commands"}
+    assert commands["type"] == "array"
+    assert commands["items"]["type"] == "object"
 
 
 def test_chunk_tool_schema_declares_max_rows_default() -> None:
@@ -555,3 +569,43 @@ def test_stdio_entrypoint_exits_on_stdin_eof() -> None:
     )
 
     assert completed.returncode == 0, completed.stderr
+
+
+# ---------------------------------------------------------------------------
+# 5. officecli bridge tools (integration through the MCP protocol)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    shutil.which("officecli") is None, reason="officecli binary not installed"
+)
+def test_mcp_edit_workbook_end_to_end(tmp_path: Path) -> None:
+    xlsx = _make_xlsx(tmp_path / "edit.xlsx")
+
+    payload = _call_tool(
+        "edit_workbook",
+        {
+            "path": str(xlsx),
+            "commands": [
+                {"command": "set", "path": "/Sheet1/B2", "props": {"value": "=1+1"}}
+            ],
+        },
+    )
+
+    assert payload["ok"] is True, payload
+    assert payload["summary"]["succeeded"] == 1
+    assert "校验通过" in payload["message"] or "must_fix=0" in payload["message"]
+
+
+@pytest.mark.skipif(
+    shutil.which("officecli") is None, reason="officecli binary not installed"
+)
+def test_mcp_validate_and_render_tools(tmp_path: Path) -> None:
+    xlsx = _make_xlsx(tmp_path / "render.xlsx")
+
+    validated = _call_tool("validate_workbook", {"path": str(xlsx)})
+    rendered = _call_tool("render_workbook", {"path": str(xlsx)})
+
+    assert validated["ok"] is True, validated
+    assert rendered["ok"] is True, rendered
+    assert Path(rendered["screenshot"]).is_file()

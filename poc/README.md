@@ -44,7 +44,7 @@ cp -R <REPO_ROOT>/poc/skills/excel-qa-bank \
 5. 建议 `env.POC_WORKSPACE=<REPO_ROOT>`，MCP 只允许读取该目录内文件（防路径穿越）
 6. 使用 `.venv`：`uv venv && source .venv/bin/activate && uv pip install -r poc/requirements.txt`
 
-工具：`detect_corrupt_workbook`、`detect_encoding`、`chunk_large_workbook`、`describe_workbook`、`sheet_to_markdown`。
+工具：`detect_corrupt_workbook`、`detect_encoding`、`chunk_large_workbook`、`describe_workbook`、`sheet_to_markdown`，以及 officecli 守卫桥接四件套（需本机安装 [officecli](https://github.com/iOfficeAI/OfficeCLI)，未安装时调用会返回 `officecli_missing`）：`edit_workbook`（守卫批量写回：add/set/remove/move/swap 白名单，写前损坏/超限预检，写后 OpenXML validate + 公式审计，officecli batch 原子回滚）、`inspect_workbook`（officecli get 结构化读取样式/格式细节）、`validate_workbook`（OpenXML schema 校验）、`render_workbook`（渲染 PNG 目检，输出强制在工作区内）。
 
 **禁止**在配置或仓库中写入 API Key；模型密钥仅用环境变量 / `QWENPAW_SECRET_DIR`。
 
