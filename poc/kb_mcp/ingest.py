@@ -19,7 +19,7 @@ from .stores import StoreBundle, open_stores, store_root
 
 logger = logging.getLogger("poc.kb")
 
-_VL_BATCH = 8
+_VL_BATCH = 2
 
 
 def _sandbox_denied(err: dict[str, Any]) -> dict[str, Any]:

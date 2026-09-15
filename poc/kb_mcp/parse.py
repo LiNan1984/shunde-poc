@@ -508,6 +508,15 @@ def parse_pdf(
             plumber_page = plumber_pages[i] if i < len(plumber_pages) else None
             tables = _extract_tables_from_page(plumber_page)
             images = _extract_images(reader.pages[i], dest, page_no)
+            if plumber_page is not None:
+                # Release pdfplumber's per-page object cache immediately; the
+                # full list would otherwise retain every page until the end
+                # (multi-GB RSS on image-heavy reports).
+                close_page = getattr(plumber_page, "close", None)
+                if callable(close_page):
+                    close_page()
+                plumber_pages[i] = None
+            pil.close() if hasattr(pil, "close") else None
             page_rec = {
                 "page": page_no,
                 "native_text": native,
