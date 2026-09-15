@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 720" width="1100" height="720">
+<style>text{font-family:"PingFang SC","Microsoft YaHei",Helvetica,Arial,sans-serif}</style>
+<defs>
+<marker id="ab" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#2563eb"/></marker>
+<marker id="ag" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#059669"/></marker>
+<marker id="ao" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#ea580c"/></marker>
+<filter id="sh" x="-5%" y="-5%" width="110%" height="110%"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-opacity="0.12"/></filter>
+</defs>
+<rect width="1100" height="720" fill="#ffffff"/>
+<text x="550" y="36" text-anchor="middle" font-size="20" font-weight="600" fill="#111827">顺德农商行 POC — 实现方案总览（旁路扩展，内核 0 改动）</text>
+<text x="550" y="58" text-anchor="middle" font-size="12" fill="#6b7280">QwenPaw v2.0.0 · 4 MCP / 4 Skill / 2 插件 · pytest 349 passed, 1 skipped</text>
+<rect x="80" y="80" width="940" height="70" rx="10" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5" filter="url(#sh)"/>
+<text x="550" y="108" text-anchor="middle" font-size="14" font-weight="600" fill="#1e40af">① 评委 / 业务用户 · QwenPaw Console</text>
+<text x="550" y="130" text-anchor="middle" font-size="12" fill="#334155">智能体会话 · 挂载 skill_paths · 导入 MCP 配置 · 插件安装</text>
+<line x1="550" y1="150" x2="550" y2="175" stroke="#2563eb" stroke-width="2" marker-end="url(#ab)"/>
+<rect x="80" y="180" width="940" height="100" rx="10" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+<text x="100" y="202" font-size="13" font-weight="600" fill="#166534">② Skill 层（4 份 SKILL.md · 触发词/参数/返回值/边界）</text>
+<rect x="100" y="214" width="210" height="50" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.5"/>
+<text x="205" y="235" text-anchor="middle" font-size="13" font-weight="600" fill="#14532d">excel-qa-bank</text>
+<text x="205" y="253" text-anchor="middle" font-size="11" fill="#64748b">场景① Excel</text>
+<rect x="335" y="214" width="210" height="50" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.5"/>
+<text x="440" y="235" text-anchor="middle" font-size="13" font-weight="600" fill="#14532d">kb-qa-bank</text>
+<text x="440" y="253" text-anchor="middle" font-size="11" fill="#64748b">场景② 知识库</text>
+<rect x="570" y="214" width="210" height="50" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.5"/>
+<text x="675" y="235" text-anchor="middle" font-size="13" font-weight="600" fill="#14532d">ops-assistant</text>
+<text x="675" y="253" text-anchor="middle" font-size="11" fill="#64748b">场景③ 运营</text>
+<rect x="805" y="214" width="210" height="50" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.5"/>
+<text x="910" y="235" text-anchor="middle" font-size="13" font-weight="600" fill="#14532d">report-visualizer</text>
+<text x="910" y="253" text-anchor="middle" font-size="11" fill="#64748b">场景④ 报告</text>
+<line x1="550" y1="280" x2="550" y2="305" stroke="#2563eb" stroke-width="2" marker-end="url(#ab)"/>
+<rect x="80" y="310" width="940" height="120" rx="10" fill="#faf5ff" stroke="#d8b4fe" stroke-width="1.5"/>
+<text x="100" y="332" font-size="13" font-weight="600" fill="#6b21a8">③ MCP 层（stdio FastMCP · 共 21 工具 · scripts/mcp_stdio_smoke.py 彩排）</text>
+<rect x="100" y="346" width="210" height="68" rx="8" fill="#ffffff" stroke="#d8b4fe" stroke-width="1.5"/>
+<text x="205" y="370" text-anchor="middle" font-size="13" font-weight="600" fill="#581c87">excel-guard</text>
+<text x="205" y="388" text-anchor="middle" font-size="12" fill="#7c3aed">5 工具</text>
+<text x="205" y="405" text-anchor="middle" font-size="11" fill="#64748b">损坏/编码/分块…</text>
+<rect x="335" y="346" width="210" height="68" rx="8" fill="#ffffff" stroke="#d8b4fe" stroke-width="1.5"/>
+<text x="440" y="370" text-anchor="middle" font-size="13" font-weight="600" fill="#581c87">kb-qa</text>
+<text x="440" y="388" text-anchor="middle" font-size="12" fill="#7c3aed">6 工具</text>
+<text x="440" y="405" text-anchor="middle" font-size="11" fill="#64748b">解析/入库/检索/问答</text>
+<rect x="570" y="346" width="210" height="68" rx="8" fill="#ffffff" stroke="#d8b4fe" stroke-width="1.5"/>
+<text x="675" y="370" text-anchor="middle" font-size="13" font-weight="600" fill="#581c87">ops-data</text>
+<text x="675" y="388" text-anchor="middle" font-size="12" fill="#7c3aed">3 工具</text>
+<text x="675" y="405" text-anchor="middle" font-size="11" fill="#64748b">调用量/Token/成败</text>
+<rect x="805" y="346" width="210" height="68" rx="8" fill="#ffffff" stroke="#d8b4fe" stroke-width="1.5"/>
+<text x="910" y="370" text-anchor="middle" font-size="13" font-weight="600" fill="#581c87">report-visualizer</text>
+<text x="910" y="388" text-anchor="middle" font-size="12" fill="#7c3aed">7 工具</text>
+<text x="910" y="405" text-anchor="middle" font-size="11" fill="#64748b">五类图+交叉表+docx</text>
+<line x1="550" y1="430" x2="550" y2="455" stroke="#2563eb" stroke-width="2" marker-end="url(#ab)"/>
+<rect x="80" y="460" width="940" height="100" rx="10" fill="#fff7ed" stroke="#fdba74" stroke-width="1.5"/>
+<text x="100" y="482" font-size="13" font-weight="600" fill="#9a3412">④ 旁路插件 / HOOK / 部署 / HARNESS（均在 poc/，不进 QwenPaw/ 内核）</text>
+<rect x="100" y="494" width="210" height="50" rx="8" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
+<text x="205" y="515" text-anchor="middle" font-size="12" font-weight="600" fill="#9a3412">poc-health 插件</text>
+<text x="205" y="533" text-anchor="middle" font-size="11" fill="#64748b">/api/poc/health</text>
+<rect x="335" y="494" width="210" height="50" rx="8" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
+<text x="440" y="515" text-anchor="middle" font-size="12" font-weight="600" fill="#9a3412">ops-telemetry 插件</text>
+<text x="440" y="533" text-anchor="middle" font-size="11" fill="#64748b">6 Hook · 4 类埋点 JSONL</text>
+<rect x="570" y="494" width="210" height="50" rx="8" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
+<text x="675" y="515" text-anchor="middle" font-size="12" font-weight="600" fill="#9a3412">Dockerfile.poc</text>
+<text x="675" y="533" text-anchor="middle" font-size="11" fill="#64748b">slim 镜像 + /health</text>
+<rect x="805" y="494" width="210" height="50" rx="8" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
+<text x="910" y="515" text-anchor="middle" font-size="12" font-weight="600" fill="#9a3412">HARNESS 讲义</text>
+<text x="910" y="533" text-anchor="middle" font-size="11" fill="#64748b">压缩 / 记忆 / 沙箱</text>
+<line x1="550" y1="560" x2="550" y2="585" stroke="#059669" stroke-width="2" marker-end="url(#ag)"/>
+<rect x="80" y="590" width="940" height="80" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="100" y="615" font-size="13" font-weight="600" fill="#334155">⑤ 运行底座与红线</text>
+<text x="100" y="640" font-size="12" fill="#475569">沙箱 POC_WORKSPACE（fd 打开 · symlink fail-closed） · 密钥仅环境变量/秘密目录 · git diff QwenPaw/ = 0 行</text>
+<text x="100" y="658" font-size="12" fill="#475569">知识库：ES/MySQL/GALASYBASE + MinerU/Embedding（缺端点时本地 fallback 夹具可演示）</text>
+<line x1="80" y1="698" x2="110" y2="698" stroke="#2563eb" stroke-width="2" marker-end="url(#ab)"/>
+<text x="118" y="702" font-size="11" fill="#6b7280">主请求路径</text>
+<line x1="220" y1="698" x2="250" y2="698" stroke="#059669" stroke-width="2" marker-end="url(#ag)"/>
+<text x="258" y="702" font-size="11" fill="#6b7280">落到沙箱/红线</text>
+<text x="900" y="702" text-anchor="end" font-size="11" fill="#94a3b8">docs/演示材料 · 2026-09-14</text>
+</svg>

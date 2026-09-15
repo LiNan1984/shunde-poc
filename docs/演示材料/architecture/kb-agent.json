@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "mode": "architecture",
+  "template_type": "architecture",
+  "style": 1,
+  "quality_profile": "showcase",
+  "width": 960,
+  "height": 600,
+  "title": "多模态文件助手架构",
+  "subtitle": "kb-agent · kb-qa 6 工具 · MinerU · RRF+重排序 · 看图作答",
+  "containers": [
+    { "id": "control-plane", "x": 40, "y": 120, "width": 880, "height": 116, "label": "交互与编排" },
+    { "id": "execution-state", "x": 40, "y": 304, "width": 880, "height": 136, "label": "解析入库、四库端口与混合检索" }
+  ],
+  "nodes": [
+    { "id": "client", "kind": "rect", "x": 60, "y": 156, "width": 160, "height": 60, "label": "PDF 扫描件", "sublabel": "表 / 图 / 概括", "fill": "#f8fafc", "stroke": "#94a3b8", "flat": true },
+    { "id": "gateway", "kind": "double_rect", "x": 300, "y": 156, "width": 180, "height": 60, "label": "kb-agent", "sublabel": "kb-qa-bank", "fill": "#fffbeb", "stroke": "#f59e0b", "flat": true },
+    { "id": "agent", "kind": "double_rect", "x": 560, "y": 156, "width": 180, "height": 60, "label": "kb-qa MCP", "sublabel": "6 个工具", "fill": "#faf5ff", "stroke": "#8b5cf6", "flat": true },
+    { "id": "memory", "kind": "rect", "x": 300, "y": 344, "width": 180, "height": 60, "label": "MinerU 解析", "sublabel": "页码 · 表 · 页图", "fill": "#f0f9ff", "stroke": "#38bdf8", "flat": true },
+    { "id": "tools", "kind": "rect", "x": 560, "y": 344, "width": 180, "height": 60, "label": "四库端口", "sublabel": "ES/MySQL/图/页图", "fill": "#f0fdf4", "stroke": "#22c55e", "flat": true },
+    { "id": "eval", "kind": "rect", "x": 790, "y": 344, "width": 110, "height": 60, "label": "检索看图", "sublabel": "RRF rerank", "fill": "#fff1f2", "stroke": "#fb7185", "flat": true }
+  ],
+  "arrows": [
+    { "id": "request", "source": "client", "target": "gateway", "source_port": "right", "target_port": "left", "flow": "control", "label": "提问" },
+    { "id": "dispatch", "source": "gateway", "target": "agent", "source_port": "right", "target_port": "left", "flow": "control", "label": "调工具" },
+    { "id": "context", "source": "agent", "target": "memory", "source_port": "bottom", "target_port": "top", "flow": "read", "label": "解析", "route_points": [[632, 270], [390, 270]] },
+    { "id": "tool-call", "source": "agent", "target": "tools", "source_port": "bottom", "target_port": "top", "flow": "write", "label": "入库", "dashed": true },
+    { "id": "augment", "source": "memory", "target": "tools", "source_port": "right", "target_port": "left", "flow": "write", "label": "切块" },
+    { "id": "trace", "source": "tools", "target": "eval", "source_port": "right", "target_port": "left", "flow": "data", "label": "召回" },
+    { "id": "z-feedback", "source": "eval", "target": "agent", "source_port": "top", "target_port": "bottom", "flow": "feedback", "label": "页码", "dashed": true, "route_points": [[845, 270], [668, 270]] }
+  ],
+  "legend_orientation": "horizontal",
+  "legend_x": 48,
+  "legend_y": 510,
+  "legend_locked": true,
+  "legend": [
+    { "flow": "control", "label": "编排" },
+    { "flow": "read", "label": "解析" },
+    { "flow": "write", "label": "入库" },
+    { "flow": "data", "label": "混合检索" },
+    { "flow": "feedback", "label": "引用来源" }
+  ],
+  "footer": "poc/kb_mcp · 活路 ES:19200 MySQL:13306 · 未接通则 sqlite+本地向量+graph.json",
+  "footer_x": 48,
+  "footer_y": 570
+}

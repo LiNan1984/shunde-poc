@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "mode": "architecture",
+  "template_type": "architecture",
+  "style": 1,
+  "quality_profile": "showcase",
+  "width": 960,
+  "height": 600,
+  "title": "运营助手架构",
+  "subtitle": "ops-agent · 6 Hook / 5 Phase · JSONL 数字禁止编造",
+  "containers": [
+    { "id": "control-plane", "x": 40, "y": 120, "width": 880, "height": 116, "label": "运行时旁路埋点" },
+    { "id": "execution-state", "x": 40, "y": 304, "width": 880, "height": 136, "label": "读数、问答与护栏" }
+  ],
+  "nodes": [
+    { "id": "client", "kind": "rect", "x": 60, "y": 156, "width": 160, "height": 60, "label": "Runtime", "sublabel": "请求生命周期", "fill": "#f8fafc", "stroke": "#94a3b8", "flat": true },
+    { "id": "gateway", "kind": "double_rect", "x": 300, "y": 156, "width": 180, "height": 60, "label": "6 个 Hook", "sublabel": "覆盖 5 Phase", "fill": "#fffbeb", "stroke": "#f59e0b", "flat": true },
+    { "id": "agent", "kind": "double_rect", "x": 560, "y": 156, "width": 180, "height": 60, "label": "JSONL 落盘", "sublabel": "telemetry/日期", "fill": "#faf5ff", "stroke": "#8b5cf6", "flat": true },
+    { "id": "memory", "kind": "rect", "x": 300, "y": 344, "width": 180, "height": 60, "label": "ops-data", "sublabel": "3 个 MCP 工具", "fill": "#f0f9ff", "stroke": "#38bdf8", "flat": true },
+    { "id": "tools", "kind": "rect", "x": 560, "y": 344, "width": 180, "height": 60, "label": "ops-agent", "sublabel": "ops-assistant", "fill": "#f0fdf4", "stroke": "#22c55e", "flat": true },
+    { "id": "eval", "kind": "rect", "x": 790, "y": 344, "width": 110, "height": 60, "label": "不编造", "sublabel": "暂无埋点", "fill": "#fff1f2", "stroke": "#fb7185", "flat": true }
+  ],
+  "arrows": [
+    { "id": "request", "source": "client", "target": "gateway", "source_port": "right", "target_port": "left", "flow": "control", "label": "观察" },
+    { "id": "dispatch", "source": "gateway", "target": "agent", "source_port": "right", "target_port": "left", "flow": "write", "label": "落盘" },
+    { "id": "context", "source": "agent", "target": "memory", "source_port": "bottom", "target_port": "top", "flow": "read", "label": "读文件", "route_points": [[632, 270], [390, 270]] },
+    { "id": "tool-call", "source": "agent", "target": "tools", "source_port": "bottom", "target_port": "top", "flow": "async", "label": "问答", "dashed": true },
+    { "id": "augment", "source": "memory", "target": "tools", "source_port": "right", "target_port": "left", "flow": "data", "label": "汇总" },
+    { "id": "trace", "source": "tools", "target": "eval", "source_port": "right", "target_port": "left", "flow": "control", "label": "校验" },
+    { "id": "z-feedback", "source": "eval", "target": "agent", "source_port": "top", "target_port": "bottom", "flow": "feedback", "label": "禁编", "dashed": true, "route_points": [[845, 270], [668, 270]] }
+  ],
+  "legend_orientation": "horizontal",
+  "legend_x": 48,
+  "legend_y": 510,
+  "legend_locked": true,
+  "legend": [
+    { "flow": "control", "label": "观察" },
+    { "flow": "write", "label": "写入" },
+    { "flow": "read", "label": "读埋点" },
+    { "flow": "async", "label": "问答" },
+    { "flow": "data", "label": "统计" },
+    { "flow": "feedback", "label": "无数据不编" }
+  ],
+  "footer": "poc/hooks + poc/ops_mcp · 调用量 / Token / 工具成败 / 耗时 · 时间口径用事件 ts",
+  "footer_x": 48,
+  "footer_y": 570
+}
