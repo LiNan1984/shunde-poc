@@ -18,19 +18,19 @@ mcp = FastMCP("kb-qa")
 
 @mcp.tool()
 def parse_document(path: str, doc_id: str = "", max_pages: int = 0) -> dict:
-    """Parse a workspace PDF into chunks with page/chapter, tables, images, and page PNGs."""
+    """解析文档：把工作区 PDF 切成带页码/章节/表/图的块。"""
     return _parse_pdf(path, doc_id=doc_id, max_pages=max_pages)
 
 
 @mcp.tool()
 def ingest_document(path: str, doc_id: str = "", max_pages: int = 0) -> dict:
-    """Parse a workspace PDF and write page images, metadata, vectors, and graph relations."""
+    """入库文档：解析 PDF 并写入页图、元数据、向量和图关系。"""
     return _ingest_pdf(path, doc_id=doc_id, max_pages=max_pages)
 
 
 @mcp.tool()
 def ingest_spreadsheet(path: str, doc_id: str = "", sample_rows: int = 5) -> dict:
-    """Index spreadsheet metadata only (filename, sheet names, headers, sample rows) for file routing."""
+    """索引表格元数据：只索引文件名/sheet/表头/样例行，用于定位文件。"""
     return _ingest_spreadsheet(path, doc_id=doc_id, sample_rows=sample_rows)
 
 
@@ -44,7 +44,7 @@ def search_knowledge(
     mode: str = "hybrid",
     k: int = 8,
 ) -> dict:
-    """Hybrid search (BM25 + text vector + image vector) with doc/chapter/page filters."""
+    """检索知识：BM25 + 文本向量 + 图像向量混合检索，命中带页码。"""
     return _search_knowledge(
         query,
         doc_id=doc_id,
@@ -65,7 +65,7 @@ def answer_knowledge(
     page_to: int = 0,
     k: int = 8,
 ) -> dict:
-    """Answer 缺块/多模态/短句/概括 queries from indexed chunks, citing page and chapter."""
+    """知识问答：按缺块/多模态/短句/概括作答，并引用页码章节。"""
     return _answer_knowledge(
         query,
         doc_id=doc_id,

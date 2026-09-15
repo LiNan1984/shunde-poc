@@ -81,7 +81,7 @@ def _secrets_enabled() -> bool:
     return os.environ.get("POC_LOAD_SECRETS", "1").strip().lower() not in {"0", "false", "no"}
 
 
-_SECRET_ENV_FILES = ("embedding.env", "middleware.env")
+_SECRET_ENV_FILES = ("middleware.env", "embedding.env")  # 先到先得：middleware.env 优先
 
 
 def _load_env_file(path: Path) -> None:

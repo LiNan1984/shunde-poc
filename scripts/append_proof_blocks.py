@@ -233,7 +233,7 @@ def add_table_before(anchor: str, rows: list[list[str]]) -> None:
 def intro_text(label: str, code: str) -> str:
     return (
         f"用例 {code}（对应需求原文 §{label}）的完成证据与现场演示命令如下。"
-        f"仓库当前测试基线：pytest 273 passed, 1 skipped（含场景②知识库夹具）。"
+        f"仓库当前测试基线：pytest 349 passed, 1 skipped（含场景②知识库与 stdio 结构测试）。"
         f"本节直接挂在原评估指标表之后，"
         f"便于评委按需求原顺序查阅。"
     )
@@ -245,7 +245,7 @@ def proof_rows(code: str) -> list[list[str]]:
     common_row = [
         "QwenPaw v2.0.0 旁路接入（不改内核）",
         "✅ 已完成",
-        "poc/requirements.txt 已锁版本；QwenPaw v2.0.0；pytest 全绿 225；"
+        "poc/requirements.txt 已锁版本；QwenPaw v2.0.0；pytest 全绿 349；"
         "红线 2：所有改动在 poc/ 内，git diff QwenPaw/ 始终为空",
         "git diff --stat QwenPaw/  # 期望 0 行变更",
     ]

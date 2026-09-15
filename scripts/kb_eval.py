@@ -105,7 +105,7 @@ def load_analyze_page() -> Callable[..., Any] | None:
     None means the tool is not importable yet — callers skip vision items
     with a note instead of fabricating a vision answer.
     """
-    for module_name in ("poc.kb_mcp.analyze", "poc.kb_mcp.analyze_page", "poc.kb_mcp.server"):
+    for module_name in ("poc.kb_mcp.vision", "poc.kb_mcp.server"):
         try:
             module = __import__(module_name, fromlist=["analyze_page"])
         except Exception:  # noqa: BLE001 — module may not exist on this branch

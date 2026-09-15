@@ -12,13 +12,13 @@ mcp = FastMCP("ops-data")
 
 @mcp.tool()
 def list_telemetry_files_tool() -> dict:
-    """列出 POC_WORKSPACE/telemetry 下所有 JSONL 埋点文件 / List all JSONL telemetry files under the sandbox."""
+    """列出埋点文件：列出 POC_WORKSPACE/telemetry 下所有 JSONL。"""
     return list_telemetry_files()
 
 
 @mcp.tool()
 def summarize_calls_tool(path: str | None = None) -> dict:
-    """汇总 JSONL 中调用量/状态/工具分布 / Summarize call counts by category/status/tool."""
+    """汇总调用量：按类别/状态/工具统计 JSONL 次数。"""
     return summarize_calls(path)
 
 
@@ -28,7 +28,7 @@ def recent_events_tool(
     limit: int = 50,
     path: str | None = None,
 ) -> dict:
-    """返回最近 N 条事件 / Return most recent events, filterable by category."""
+    """最近事件：返回最近 N 条埋点，可按类别过滤。"""
     return recent_events(category=category, limit=limit, path=path)
 
 

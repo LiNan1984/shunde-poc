@@ -21,7 +21,7 @@ def pivot_table_tool(
     aggfunc: str = "sum",
     max_categories: int = 50,
 ) -> dict:
-    """Build a cross-tabulation / pivot table from tabular data."""
+    """交叉表：按行/列维度对数值做透视，超限则拒绝。"""
     return pivot_table(data, rows, cols, value, aggfunc, max_categories)
 
 
@@ -34,7 +34,7 @@ def render_bar_tool(
     title: str = "",
     output_path: str = "",
 ) -> dict:
-    """Render a bar chart (single or grouped) to PNG."""
+    """柱状图：渲染单系列或分组柱状图为 PNG。"""
     return render_bar(data, x, y, series=series, title=title, output_path=output_path)
 
 
@@ -47,7 +47,7 @@ def render_line_tool(
     title: str = "",
     output_path: str = "",
 ) -> dict:
-    """Render a line chart (single or multi-series) to PNG."""
+    """折线图：渲染单系列或多系列折线图为 PNG。"""
     return render_line(data, x, y, series=series, title=title, output_path=output_path)
 
 
@@ -59,7 +59,7 @@ def render_pie_tool(
     title: str = "",
     output_path: str = "",
 ) -> dict:
-    """Render a pie chart to PNG (values summed by label)."""
+    """饼图：按标签汇总后渲染饼图为 PNG。"""
     return render_pie(data, label, value, title=title, output_path=output_path)
 
 
@@ -72,7 +72,7 @@ def render_scatter_tool(
     title: str = "",
     output_path: str = "",
 ) -> dict:
-    """Render a scatter plot to PNG (optionally colored by a column)."""
+    """散点图：渲染散点图为 PNG，可按列着色。"""
     return render_scatter(data, x, y, color=color, title=title, output_path=output_path)
 
 
@@ -88,7 +88,7 @@ def render_heatmap_tool(
     title: str = "",
     output_path: str = "",
 ) -> dict:
-    """Render a heatmap to PNG from long-form data or a 2D matrix."""
+    """热力图：由长表或二维矩阵渲染热力图 PNG。"""
     return render_heatmap(
         data=data,
         row=row,
@@ -111,7 +111,7 @@ def render_docx_report_tool(
     footer: str = "",
     style: str = "default",
 ) -> dict:
-    """Build a DOCX report with title, sections, tables, and embedded chart PNGs."""
+    """生成 docx 报告：组装标题、章节、交叉表和嵌入的图表 PNG。"""
     return render_docx_report(
         title=title,
         sections=sections,

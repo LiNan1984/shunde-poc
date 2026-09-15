@@ -36,6 +36,34 @@ def _fail(message: str) -> dict[str, Any]:
     return with_error_type({"ok": False, "message": message})
 
 
+def _load_image_bytes(page_image: str, page_no: int) -> bytes:
+    """Read PNG bytes; render the requested page first when given a PDF path.
+
+    The eval harness (and any caller with a document path rather than a page
+    screenshot) passes a PDF here — encoding PDF bytes as image/png produces a
+    400 from the vision endpoint, so render it via pypdfium2 instead.
+    """
+    p = Path(page_image)
+    if p.suffix.lower() == ".pdf":
+        import pypdfium2 as pdfium
+
+        doc = pdfium.PdfDocument(str(p))
+        try:
+            index = max(0, (page_no or 1) - 1)
+            index = min(index, len(doc) - 1)
+            page = doc[index]
+            import io
+
+            buf = io.BytesIO()
+            page.render(scale=2.0).to_pil().save(buf, format="PNG")
+            return buf.getvalue()
+        finally:
+            close = getattr(doc, "close", None)
+            if callable(close):
+                close()
+    return p.read_bytes()
+
+
 def _config_error() -> dict[str, Any]:
     return with_error_type({
         "ok": False,
@@ -97,9 +125,11 @@ def analyze_page(doc_id: str = "", path: str = "", page: int = 0, query: str = "
         return _config_error()
 
     try:
-        data = Path(page_image).read_bytes()
+        data = _load_image_bytes(page_image, page_no)
     except OSError as exc:
         return _fail(f"无法读取页面图 / cannot open page image: {exc}")
+    except ImportError as exc:
+        return _fail(f"缺少 pypdfium2，无法渲染 PDF 页 / pypdfium2 missing: {exc}")
     data_url = "data:image/png;base64," + base64.b64encode(data).decode("ascii")
 
     answer = chat_completion(

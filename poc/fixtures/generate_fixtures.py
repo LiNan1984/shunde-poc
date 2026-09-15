@@ -101,7 +101,19 @@ def write_branch_balance_chart_pdf(path: Path) -> Path:
     names = list(BRANCH_BALANCE_VALUES)
     values = [BRANCH_BALANCE_VALUES[n] for n in names]
     fig, ax = plt.subplots(figsize=(7.0, 4.0), dpi=150)
-    ax.bar(names, values, color="#4472c4")
+    bars = ax.bar(names, values, color="#4472c4")
+    # Data labels ON the bars: the exact figures exist only inside the chart
+    # image (never in the extractable PDF text layer), and the vision model
+    # reads them verbatim instead of estimating from pixel heights.
+    for bar, value in zip(bars, values, strict=False):
+        ax.annotate(
+            f"{value:.2f}",
+            xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+            xytext=(0, 3),
+            textcoords="offset points",
+            ha="center",
+            fontsize=10,
+        )
     ax.set_title("Branch Loan Balance (Q4)")
     ax.set_xlabel("Branch")
     ax.set_ylabel("Balance (100M CNY)")

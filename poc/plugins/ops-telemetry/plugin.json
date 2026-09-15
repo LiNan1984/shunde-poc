@@ -1,8 +1,8 @@
 {
   "id": "poc-ops-telemetry",
   "version": "0.1.0",
-  "name": "POC Ops Telemetry",
-  "description": "Four-category JSONL hooks: call volume, tokens, tool outcome, latency, identity.",
+  "name": "运营埋点 Hook（6 Hook / 5 Phase）",
+  "description": "把调用量、Token、工具成败、耗时、会话身份写入 telemetry JSONL。本地安装后出现在「已安装插件」，不会出现在插件市场。",
   "author": "shunde-poc",
   "type": "hook",
   "min_version": "2.0.0",

@@ -19,7 +19,11 @@ from qwenpaw.plugins.api import PluginApi  # type: ignore[import-not-found]
 def _bootstrap_poc() -> None:
     """Keep ``poc.hooks`` importable after the plugin is copied into ~/.qwenpaw."""
     here = Path(__file__).resolve()
-    candidates = [here.parents[2], Path("/Users/linan/Desktop/aicode/shunde")]
+    candidates = [
+        here.parents[2],
+        Path("/root/shunde-poc"),
+        Path("/Users/linan/Desktop/aicode/shunde"),
+    ]
     for cand in candidates:
         if (cand / "poc" / "hooks" / "ops_hooks.py").is_file():
             text = str(cand)
@@ -38,7 +42,7 @@ class PocOpsTelemetryPlugin:
     """Install the six POC telemetry hooks into every workspace."""
 
     plugin_id = "poc-ops-telemetry"
-    plugin_name = "POC Ops Telemetry"
+    plugin_name = "运营埋点 Hook（6 Hook / 5 Phase）"
 
     def register(self, api: PluginApi) -> None:
         for hook in ALL_HOOKS:
