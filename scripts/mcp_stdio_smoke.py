@@ -33,7 +33,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 EXPECTED = {
-    "poc.excel_guard_mcp": 5,
+    "poc.excel_guard_mcp": 9,
     "poc.report_mcp": 7,
     "poc.ops_mcp": 3,
     "poc.kb_mcp": 6,
@@ -126,7 +126,7 @@ def main() -> int:
     rc = 0
     summary = []
     pairs = [
-        ("poc.excel_guard_mcp", 5, _excel_mcp),
+        ("poc.excel_guard_mcp", 9, _excel_mcp),
         ("poc.report_mcp", 7, _report_mcp),
         ("poc.ops_mcp", 3, _ops_mcp),
         ("poc.kb_mcp", 6, _kb_mcp),
