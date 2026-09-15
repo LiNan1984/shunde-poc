@@ -6,6 +6,9 @@
 | `report-visualizer` | [`report-visualizer/SKILL.md`](report-visualizer/SKILL.md) | 报告可视化：交叉表 + 五类图 + docx 拼装；调 `report-visualizer` MCP |
 | `ops-assistant` | [`ops-assistant/SKILL.md`](ops-assistant/SKILL.md) | 运营问答：调用量/Token/工具成败/耗时四类埋点数据；调 `ops-data` MCP |
 | `kb-qa-bank` | [`kb-qa-bank/SKILL.md`](kb-qa-bank/SKILL.md) | 多模态知识库：PDF 解析/入库/检索；Excel 仅元数据定位文件 |
+| `mineru-document-parser` | [`mineru-document-parser/SKILL.md`](mineru-document-parser/SKILL.md) | MinerU 在线 API 文档解析：PDF/DOCX/PPTX/图片 → Markdown/DOCX/LaTeX，OCR 109 语种 |
+| `mineru-document-explorer` | [`mineru-document-explorer/SKILL.md`](mineru-document-explorer/SKILL.md) | qmd 知识引擎：混合检索 + 深度阅读 + LLM Wiki（15 个 MCP 工具） |
+| `mineru-mcp` | [`mineru-mcp/SKILL.md`](mineru-mcp/SKILL.md) | MinerU 两个 MCP 服务（:8201 解析 / :8181 检索）接入与运维 |
 
 ## 接入 QwenPaw
 
