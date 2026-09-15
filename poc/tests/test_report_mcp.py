@@ -140,6 +140,30 @@ def test_path_outside_workspace_denied(tmp_path: Path) -> None:
     assert "越界" in res["message"] or "outside" in res["message"].lower()
 
 
+def test_cjk_font_configured() -> None:
+    import matplotlib.pyplot as plt
+
+    from poc.report_mcp import charts
+
+    assert charts._CJK_FONT, "no CJK font resolved on this machine"
+    assert charts._CJK_FONT in plt.rcParams["font.sans-serif"]
+    assert plt.rcParams["axes.unicode_minus"] is False
+
+
+def test_render_bar_chinese_no_missing_glyph(tmp_path: Path, recwarn) -> None:
+    data = [{"分行": "顺德支行", "金额": 120.5}, {"分行": "大良支行", "金额": 98.3}]
+    res = render_bar(
+        data,
+        x="分行",
+        y="金额",
+        title="各分行金额（万元）",
+        output_path=str(tmp_path / "cjk_bar.png"),
+    )
+    assert res["ok"] is True, res
+    glyph_warnings = [w for w in recwarn.list if "missing from font" in str(w.message)]
+    assert not glyph_warnings
+
+
 def test_server_module_imports() -> None:
     from poc.report_mcp.server import mcp
 

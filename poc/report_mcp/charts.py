@@ -17,6 +17,7 @@ import matplotlib
 
 matplotlib.use("Agg")  # Force non-interactive backend (POC env, no display).
 
+import matplotlib.font_manager as fm  # noqa: E402  (after use("Agg"))
 import matplotlib.pyplot as plt  # noqa: E402  (after use("Agg"))
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
@@ -27,6 +28,58 @@ _DEFAULT_FIG_W = 6.4
 _DEFAULT_FIG_H = 3.8
 
 _VALID_TYPES = {"bar", "line", "pie", "scatter", "heatmap"}
+
+# CJK font priority: Microsoft YaHei per POC spec; the rest are system
+# fallbacks so charts render Chinese on macOS (PingFang/Hiragino) and
+# Linux (Noto/WenQuanYi) without tofu boxes.
+_CJK_FONT_CANDIDATES = [
+    "Microsoft YaHei",
+    "Microsoft YaHei UI",
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Noto Sans CJK SC",
+    "Source Han Sans SC",
+    "WenQuanYi Zen Hei",
+    "WenQuanYi Micro Hei",
+    "SimHei",
+    "Heiti SC",
+]
+
+_FONT_SUFFIXES = {".ttf", ".ttc", ".otf"}
+
+
+def _setup_cjk_font() -> str:
+    """Register extra font files and select the first available CJK font.
+
+    Extra sources: ``POC_CHART_FONT`` env var (a font file path) and any
+    .ttf/.ttc/.otf dropped into ``poc/report_mcp/fonts/`` — drop msyh.ttc
+    there to activate Microsoft YaHei on machines without it installed.
+    """
+    extra_files: list[Path] = []
+    env_font = os.environ.get("POC_CHART_FONT")
+    if env_font:
+        extra_files.append(Path(env_font).expanduser())
+    bundled_dir = Path(__file__).resolve().parent / "fonts"
+    if bundled_dir.is_dir():
+        extra_files.extend(
+            p for p in sorted(bundled_dir.iterdir()) if p.suffix.lower() in _FONT_SUFFIXES
+        )
+    for font_file in extra_files:
+        try:
+            fm.fontManager.addfont(str(font_file))
+        except Exception:  # noqa: BLE001 - bad font file must not break import
+            pass
+
+    available = {f.name for f in fm.fontManager.ttflist}
+    chosen = next((n for n in _CJK_FONT_CANDIDATES if n in available), "")
+    if chosen:
+        plt.rcParams["font.family"] = "sans-serif"
+        plt.rcParams["font.sans-serif"] = [chosen, *plt.rcParams["font.sans-serif"]]
+        plt.rcParams["axes.unicode_minus"] = False
+    return chosen
+
+
+_CJK_FONT = _setup_cjk_font()
 
 
 def _workspace_root() -> Path:

@@ -158,3 +158,5 @@ print(r["output_path"], r["charts_inserted"])
 ```
 
 约定：图表数据列用 `pandas`/原生 list[dict] 传入；中文文本通过 `python-docx` 显式指定 `eastAsia` 字体（默认宋体/黑体），避免 Mac/Linux 上中文显示为方块。
+
+图表字体：`poc/report_mcp/charts.py` 在导入时自动配置 CJK 字体（微软雅黑优先，其次 PingFang SC / Noto Sans CJK / WenQuanYi 等系统后备）。机器未装微软雅黑时，把 `msyh.ttc` 放入 `poc/report_mcp/fonts/` 或设置环境变量 `POC_CHART_FONT=/path/to/msyh.ttc` 即可生效，无需改代码。
