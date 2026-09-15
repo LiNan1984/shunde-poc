@@ -117,9 +117,9 @@ def test_server_name_is_excel_guard() -> None:
 @pytest.mark.parametrize(
     ("tool_name", "keyword"),
     [
-        ("detect_corrupt_workbook", "corrupt"),
-        ("detect_encoding", "encoding"),
-        ("chunk_large_workbook", "chunk"),
+        ("detect_corrupt_workbook", "损坏"),
+        ("detect_encoding", "编码"),
+        ("chunk_large_workbook", "分块"),
         ("describe_workbook", "sheet"),
         ("sheet_to_markdown", "markdown"),
     ],
