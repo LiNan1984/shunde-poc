@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,8 @@ from poc.kb_mcp.fixtures import (
     write_scan_pdf,
     write_table_image_pdf,
 )
+
+TESSERACT = shutil.which("tesseract")
 from poc.kb_mcp.ingest import drop_chunk, ingest_pdf
 from poc.kb_mcp.retrieve import answer_knowledge, classify_query, search_knowledge
 from poc.kb_mcp.stores import (
@@ -114,7 +117,8 @@ def test_bm25_text_vector_image_vector_and_filters(tmp_path: Path) -> None:
         (h.get("text") or "") + " " + (h.get("image_description") or "")
         for h in image["hits"]
     )
-    assert TOKENS["chart"] in blob.upper()
+    if TESSERACT:  # 无 tesseract（CI）时图像描述优雅降级，无 OCR token 可断言
+        assert TOKENS["chart"] in blob.upper()
 
     page2 = search_knowledge("风险管理", page_from=2, page_to=2, doc_id="credit-policy")
     assert page2["ok"] is True
@@ -194,7 +198,8 @@ def test_four_qa_types_on_real_ingest_path(tmp_path: Path) -> None:
 
     picture = answer_knowledge("图片 RATECHART 在哪一页", doc_id="pricing")
     assert picture["ok"] is True
-    assert TOKENS["chart"] in picture["answer"].upper()
+    if TESSERACT:  # 同上：离线/无 OCR 时答案不含 RATECHART token
+        assert TOKENS["chart"] in picture["answer"].upper()
     assert picture["sources"][0]["page"]
 
     short_q = "信贷政策"

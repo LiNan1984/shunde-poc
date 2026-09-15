@@ -79,8 +79,17 @@ def test_qwenpaw_clone_is_v2_0_0() -> None:
     assert QWENPAW.is_dir(), f"missing clone at {QWENPAW}"
     assert (QWENPAW / "src" / "qwenpaw").is_dir()
     # The submodule tracks upstream: pin the major line, not an exact tag
-    # (a pull bumps it to v2.x.y / vNext-beta legitimately).
-    describe = _git_describe(QWENPAW)
+    # (a pull bumps it to v2.x.y / vNext-beta legitimately). On CI the
+    # submodule is fetched at a pinned detached commit without tags, so
+    # describe may fail — a successful rev-parse is enough there.
+    try:
+        describe = _git_describe(QWENPAW)
+    except subprocess.CalledProcessError:
+        subprocess.run(
+            ["git", "-C", str(QWENPAW), "rev-parse", "--short", "HEAD"],
+            check=True, capture_output=True, text=True,
+        )
+        return
     assert describe.startswith("v2."), (
         f"QwenPaw clone left the v2 line: {describe}"
     )
