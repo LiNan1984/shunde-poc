@@ -96,3 +96,53 @@ def test_http_embed_sends_bearer_and_model_then_ranks(
         assert any(TOKENS["alpha"] in (h.get("text") or "") for h in hits["hits"])
     finally:
         server.shutdown()
+
+
+def test_http_embed_parallel_batches_preserve_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Concurrent batch embedding must return vectors aligned with input order."""
+    import time as _time
+
+    seen_batches: list[list[str]] = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802
+            length = int(self.headers.get("Content-Length") or 0)
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            inputs = [str(t) for t in (payload.get("input") or [])]
+            seen_batches.append(inputs)
+            _time.sleep(0.05)  # widen the window so batches overlap
+            data = [
+                {"index": i, "embedding": [float(i + 1), 0.0]}
+                for i, text in enumerate(inputs)
+            ]
+            body = json.dumps({"data": data}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, fmt: str, *args: object) -> None:
+            return
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        host, port = server.server_address[:2]
+        monkeypatch.setenv("POC_EMBEDDING_URL", f"http://{host}:{port}/embeddings")
+        monkeypatch.setenv("POC_EMBEDDING_MODEL", "test-model")
+        monkeypatch.setenv("POC_EMBEDDING_API_KEY", "k")
+        from poc.kb_mcp import embed as embed_mod
+
+        texts = [f"chunk-{i}" for i in range(12)]  # 3 batches of _BATCH=4
+        vectors = embed_mod._http_embed(f"http://{host}:{port}/embeddings", texts)
+        assert len(vectors) == len(texts)
+        # chunk i lives at sub-index i % 4 of its batch → one-hot value i % 4 + 1
+        for i, vec in enumerate(vectors):
+            assert vec == [float(i % embed_mod._BATCH + 1), 0.0], f"order broken at {i}"
+        assert len(seen_batches) == 3
+    finally:
+        server.shutdown()

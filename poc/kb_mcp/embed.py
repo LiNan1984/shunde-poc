@@ -12,6 +12,7 @@ import os
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,7 @@ _BATCH = 4
 _HTTP_TIMEOUT = 30.0
 _RETRY_ATTEMPTS = 3
 _RETRY_BACKOFF = (2.0, 5.0, 10.0)
+_EMBED_WORKERS = 4
 _VL_TIMEOUT = 120.0
 
 
@@ -260,6 +262,49 @@ def _headers() -> dict[str, str]:
     return headers
 
 
+def _embed_batch(url: str, model: str, batch: list[str]) -> list[list[float]]:
+    """Embed one batch with retry; raises after the final attempt fails."""
+    payload = json.dumps({"model": model, "input": batch, "encoding_format": "float"}).encode()
+    body = None
+    for attempt in range(_RETRY_ATTEMPTS):
+        req = urllib.request.Request(url, data=payload, method="POST", headers=_headers())
+        try:
+            with urllib.request.urlopen(req, timeout=_HTTP_TIMEOUT) as resp:
+                body = json.loads(resp.read().decode("utf-8"))
+            break
+        except RuntimeError:
+            raise
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")[:300]
+            raise RuntimeError(
+                f"Embedding 端点失败 / embedding HTTP {exc.code}: {detail}"
+            ) from exc
+        except (urllib.error.URLError, http.client.HTTPException, TimeoutError,
+                json.JSONDecodeError, OSError, UnicodeDecodeError, TypeError,
+                ValueError, AttributeError) as exc:
+            if attempt + 1 >= _RETRY_ATTEMPTS:
+                raise RuntimeError(
+                    f"Embedding 端点失败 / embedding endpoint failed: {exc}"
+                ) from exc
+            time.sleep(_RETRY_BACKOFF[min(attempt, len(_RETRY_BACKOFF) - 1)])
+    if body is None:
+        raise RuntimeError("Embedding 端点失败 / embedding endpoint failed: no response")
+    data = body.get("data") or body.get("embeddings") if isinstance(body, dict) else None
+    if not isinstance(data, list) or len(data) != len(batch):
+        raise RuntimeError("Embedding 端点返回无法解析 / embedding response malformed")
+    ordered = sorted(
+        data,
+        key=lambda item: int(item.get("index", 0)) if isinstance(item, dict) else 0,
+    )
+    vectors = []
+    for item in ordered:
+        vec = item.get("embedding") if isinstance(item, dict) else item
+        if not isinstance(vec, list) or not vec:
+            raise RuntimeError("Embedding 端点缺少向量 / embedding missing vector")
+        vectors.append([float(x) for x in vec])
+    return vectors
+
+
 def _http_embed(url: str, texts: list[str]) -> list[list[float]]:
     if not embedding_api_key():
         raise RuntimeError(
@@ -267,46 +312,20 @@ def _http_embed(url: str, texts: list[str]) -> list[list[float]]:
         )
     model = embedding_model()
     cleaned = [(t or "")[:_MAX_CHARS] or " " for t in texts]
+    batches = [cleaned[start : start + _BATCH] for start in range(0, len(cleaned), _BATCH)]
+    if len(batches) == 1:
+        return _embed_batch(url, model, batches[0])
+    results: list[list[list[float]] | None] = [None] * len(batches)
+    with ThreadPoolExecutor(max_workers=_EMBED_WORKERS) as pool:
+        futures = {
+            pool.submit(_embed_batch, url, model, batch): idx
+            for idx, batch in enumerate(batches)
+        }
+        for future, idx in futures.items():
+            results[idx] = future.result()
     out: list[list[float]] = []
-    for start in range(0, len(cleaned), _BATCH):
-        batch = cleaned[start : start + _BATCH]
-        payload = json.dumps({"model": model, "input": batch, "encoding_format": "float"}).encode()
-        body = None
-        for attempt in range(_RETRY_ATTEMPTS):
-            req = urllib.request.Request(url, data=payload, method="POST", headers=_headers())
-            try:
-                with urllib.request.urlopen(req, timeout=_HTTP_TIMEOUT) as resp:
-                    body = json.loads(resp.read().decode("utf-8"))
-                break
-            except RuntimeError:
-                raise
-            except urllib.error.HTTPError as exc:
-                detail = exc.read().decode("utf-8", errors="replace")[:300]
-                raise RuntimeError(
-                    f"Embedding 端点失败 / embedding HTTP {exc.code}: {detail}"
-                ) from exc
-            except (urllib.error.URLError, http.client.HTTPException, TimeoutError,
-                    json.JSONDecodeError, OSError, UnicodeDecodeError, TypeError,
-                    ValueError, AttributeError) as exc:
-                if attempt + 1 >= _RETRY_ATTEMPTS:
-                    raise RuntimeError(
-                        f"Embedding 端点失败 / embedding endpoint failed: {exc}"
-                    ) from exc
-                time.sleep(_RETRY_BACKOFF[min(attempt, len(_RETRY_BACKOFF) - 1)])
-        if body is None:
-            raise RuntimeError("Embedding 端点失败 / embedding endpoint failed: no response")
-        data = body.get("data") or body.get("embeddings") if isinstance(body, dict) else None
-        if not isinstance(data, list) or len(data) != len(batch):
-            raise RuntimeError("Embedding 端点返回无法解析 / embedding response malformed")
-        ordered = sorted(
-            data,
-            key=lambda item: int(item.get("index", 0)) if isinstance(item, dict) else 0,
-        )
-        for item in ordered:
-            vec = item.get("embedding") if isinstance(item, dict) else item
-            if not isinstance(vec, list) or not vec:
-                raise RuntimeError("Embedding 端点缺少向量 / embedding missing vector")
-            out.append([float(x) for x in vec])
+    for batch_vectors in results:
+        out.extend(batch_vectors or [])
     if len(out) != len(texts):
         raise RuntimeError("Embedding 数量与输入不一致 / embedding count mismatch")
     return out
