@@ -35,3 +35,6 @@ MinerU/
 
 # QwenPaw/ is vendored/checked out locally for some setups; the official copy is a submodule.
 QwenPaw/
+
+# Office lock files (~$xxx.docx) — never commit
+.~*
